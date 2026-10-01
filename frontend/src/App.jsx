@@ -1,8 +1,8 @@
+import Dashboard from './Pages/Dashboard';
 function App(){
   return (
     <div>
-      <h1>QueueSmart</h1>
-      <p>Smart Queue Management</p>
+      <Dashboard />
     </div>
   );
 }
