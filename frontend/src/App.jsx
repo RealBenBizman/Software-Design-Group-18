@@ -1,9 +1,15 @@
-function App(){
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+
+function App() {
   return (
-    <div>
-      <h1>QueueSmart</h1>
-      <p>Smart Queue Management</p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />}/>
+      </Routes>
+    </BrowserRouter>
   );
 }
 
