@@ -91,7 +91,7 @@ const Dashboard=() => {
                         </div>
                     </div>
                     <button
-                     onClick={() => alert('Redirecting you to the queue for ${service.name}...')}
+                     onClick={() => alert(`Redirecting you to the queue for ${service.name}...`)}
                      style={{
                         width: '100%',
                         padding: '10px',
