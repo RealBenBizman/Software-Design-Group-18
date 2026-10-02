@@ -12,12 +12,26 @@ function App(){
       {/*Switch Pages */}
       <nav style={{
         backgroundColor:'#000080',
-        padding: '10px 20px',
+        paddingTop: '14px',
+        paddingBottom: '14px',
+        paddingRight: '28px',
+        paddingLeft: '14px',
         display: 'flex',
-        justifyContent: 'center',
-        gap: '10px',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         boxShadow: '0 3px 6px rgba(0,0,0,0.1)'
       }}>
+        {/* Program Name */}
+        <div style={{
+          color: '#ffffff',
+          fontSize:'25px',
+          fontWeight:'bold',
+          letterSpacing: '1px',
+          marginLeft: '0px'
+        }}> NEBB Queue</div>
+
+        {/*Top Of Page Button Navigation */}
+      <div style={{ display:'flex', gap:'12px'}}>
         <button
         onClick={()=>SetCurrScreen('dashboard')}
         style={{
@@ -57,6 +71,7 @@ function App(){
           cursor: 'pointer'
         }}
         >Queue Status</button>
+        </div>
       </nav>
       {/*Go to Clicked Screen */}
       <main style={{padding:'18px'}}>
@@ -65,6 +80,8 @@ function App(){
         {currScreen==='status' && <QueueStatus />}
       </main>
     </div>
+
+  
   );
 }
 

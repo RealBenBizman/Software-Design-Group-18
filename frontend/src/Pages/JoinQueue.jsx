@@ -13,10 +13,10 @@ const[appointTime, setAppointTime]=useState('');
 const[formError, setFormError]=useState('');
 
 const services =[
-    { id:1, name: 'FAFSA and Application assistance',wait:'40 min',people: 7},
-    {id: 2, name: 'Scholarships and Grants', wait:'35 min',people: 6},
-    {id: 3, name: 'Loans and visiting Counselors', wait:'27 min',people:4},
-    {id: 4, name: 'Awards and Disbursement', wait: '30 min', people: 5},
+    { id:1, name: 'FAFSA and Application Assistance',wait:'40 min',people: 7},
+    {id: 2, name: 'Scholarships and Grants', wait:'35 min',people: 4},
+    {id: 3, name: 'Loans and Visiting Counselors', wait:'27 min',people:4},
+    {id: 4, name: 'Awards and Payments', wait: '30 min', people: 5},
 ];
 const handleJoinSameDay = () => {
     const service = services.find((s) => s.id ===selectedServiceId);

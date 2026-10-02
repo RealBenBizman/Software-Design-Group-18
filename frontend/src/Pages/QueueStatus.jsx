@@ -5,17 +5,17 @@ const QueueStatus =() => {
 
     const[currentSpot, setCurrentSpot]=useState(1);
     const[notif,setNotif]=useState([
-        {id: 1, text:'You are in the queue for FAFSA and Application Assistance.', time: '1:45 PM',type:'info'},
-        {id: 2, text:'Your spot has moved up! you are now #3 in line.',time:'1:50 PM',type:'update'}
+        {id: 1, text:'You are in the queue for FAFSA and Application Assistance.', time: '1:30 PM',type:'info'},
+        {id: 2, text:'Your spot has moved up! you are now #3 in line.',time:'1:40 PM',type:'update'}
     ]);
-    const steps=['Joined','Waiting','Coming Up','It is your turn'];
+    const steps=['Joined','Waiting','Coming Up','It Is Your Turn'];
 
     // Tickets and Queue Info
     const queueData ={
         ticketNum: 'A-104',
         serviceNam:'FAFSA and Application Assistance',
         spotInLine: 3,
-        estWait: '10 minutes',
+        estWait: '20 minutes',
         advisorNam: 'Paula Wilson',
         advisorOffice: 'Room 106A',
         timeJoin: '1:30 PM',
@@ -56,6 +56,18 @@ const QueueStatus =() => {
         <div style={{ maxWidth:'700px', margin: '0 auto',padding:'25px', fontFamily:'sans-serif'}}>
             <h2 style={{color:'#000080',marginBottom:'5px'}}>Live Queue: </h2>
             <p style={{color: '#6D8196',marginBottom: '25px'}}>Track your spot in line</p>
+            {/* Queue Notifications */}
+            <div style={{ backgroundColor: '$ffffff', border: '1.3px solid #6D8196',borderRadius:'8px',padding:'18px',marginBottom:'20px'}}>
+                <h3 style={{color: '#000080',marginTop:0,fontSize:'15px', marginBottom:'12px'}}>Queue Notifications</h3>
+                <div style={{display:'flex',flexDirection:'column',gap: '8px'}}>
+                    {notif.slice().reverse().map((note)=>(
+                        <div key={note.id} style={{padding:'10px 12px',backgroundColor: '#f0f7fc',borderRadius:'5px',borderLeft: '3px solid #0047AB',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                            <span style={{fontSize:'14px',color:'#000080'}}>{note.text}</span>
+                            <span style={{fontSize:'12px', color: '#6D8196',marginLeft:'8px'}}>{note.time}</span>
+                            </div>
+                    ))}
+                </div>
+            </div>
 
             {/* Main Status Ticket */}
             <div style={{backgroundColor:'#ffffff',border:'2px solid #0047AB',borderRadius:'10px',padding:'25px',boxShadow:'0 5px 12px rgba(0,0,0,0.5)',marginBottom: '25px'}}>
@@ -158,18 +170,7 @@ const QueueStatus =() => {
                     Leave Queue
                 </button>
             </div>
-            {/* Queue Notification */}
-            <div style={{ backgroundColor: '$ffffff', border: '1.3px solid #6D8196',borderRadius:'8px',padding:'18px'}}>
-                <h3 style={{color: '#000080',marginTop:0,fontSize:'15px', marginBottom:'12px'}}>Queue Notification</h3>
-                <div style={{display:'flex',flexDirection:'column',gap: '8px'}}>
-                    {notif.slice().reverse().map((note)=>(
-                        <div key={note.id} style={{padding:'10px 12px',backgroundColor: '#f0f7fc',borderRadius:'5px',borderLeft: '3px solid #0047AB',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                            <span style={{fontSize:'14px',color:'#000080'}}>{note.text}</span>
-                            <span style={{fontSize:'12px', color: '#6D8196',marginLeft:'8px'}}>{note.time}</span>
-                            </div>
-                    ))}
-                </div>
-            </div>
+            
             {/* Confirmation Modal overlay */}
             {showCancelModal && (
                 <div style={{
