@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import nebbLogo from "../../assets/QS Logo.png";
 import "../../styles/Auth.css";
 
 function Register() {
@@ -27,8 +28,14 @@ function Register() {
     return (
         <div className="auth-page">
             <div className="auth-card">
-                <h1>Register</h1>
-                <p>Create your QueueSmart account</p>
+                <img
+                    src={nebbLogo}
+                    alt="NEBB Queue"
+                    className="auth-logo"
+                />
+
+                <h1>Create Account</h1>
+                <p>Join NEBB Queue and get started</p>
 
                 <form onSubmit={handleSubmit}>
                     <label>Account Type</label>

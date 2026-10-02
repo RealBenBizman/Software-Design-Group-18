@@ -91,3 +91,19 @@
     font-size: 14px;
     font-weight: 600;
 }
+
+.auth-logo {
+    display: block;
+    width: 230px;
+    max-width: 80%;
+    height: auto;
+    margin: 0 auto 24px;
+}
+
+.auth-card h1 {
+    text-align: center;
+}
+
+.auth-card > p {
+    text-align: center;
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import nebbLogo from "../../assets/QS Logo.png";
 import "../../styles/Auth.css";
 
 function Login(){
@@ -14,9 +15,15 @@ function Login(){
     return (
     <div className="auth-page">
         <div className="auth-card">
-            <h1>Login</h1>
-            <p>Sign In to QueueSmart</p>
+            <img
+                src={nebbLogo}
+                alt="NEBB Queue"
+                className="auth-logo"
+            />
 
+            <h1>Welcome Back</h1>
+            <p>Sign in to your account</p>
+       
             <form onSubmit={handleSubmit}>
                 <label>Email</label>
                 <input
