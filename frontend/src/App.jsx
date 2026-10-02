@@ -1,10 +1,9 @@
-function App(){
-  return (
-    <div>
-      <h1>QueueSmart</h1>
-      <p>Smart Queue Management</p>
-    </div>
-  );
+import AdminApp from "./ida pages/admin/AdminApp";
+
+
+function App() {
+  return <AdminApp />;
 }
+
 
 export default App;
