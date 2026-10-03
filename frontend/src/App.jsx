@@ -68,7 +68,6 @@ export default function App() {
 
 
         {/* Student Queue Pages */}
-
         <Route
           path="/dashboard"
           element={
@@ -98,7 +97,6 @@ export default function App() {
 
 
         {/* Student Account Pages */}
-
         <Route
           path="/appointments"
           element={
