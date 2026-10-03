@@ -7,6 +7,7 @@ import {
 
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import StaffLogin from './pages/auth/StaffLogin';
 
 import Dashboard from './pages/Dashboard';
 import JoinQueue from './pages/JoinQueue';
@@ -154,6 +155,10 @@ export default function App() {
           path="*"
           element={<Navigate to="/login" replace />}
         />
+
+        <Route path="/staff-login" 
+        element={<StaffLogin />}
+         />
 
         </Routes>
     </BrowserRouter>
