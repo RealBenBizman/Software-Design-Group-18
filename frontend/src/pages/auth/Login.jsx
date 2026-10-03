@@ -51,6 +51,11 @@ function Login(){
             <p>
                 Don't have an account? <Link to="/register">Register</Link>
             </p>
+
+            <p>
+                 Staff member?{" "}
+                 <Link to="/staff-login">Staff Sign In</Link>
+            </p>
         </div>
     </div>
 );
