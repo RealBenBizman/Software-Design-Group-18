@@ -2,13 +2,18 @@
 import React,{useState} from 'react';
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
 
-import Login from './Pages/auth/Login';
-import Register from './Pages/auth/Register';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 
 
 import Dashboard from './Pages/Dashboard';
 import JoinQueue from './Pages/JoinQueue';
 import QueueStatus from './Pages/QueueStatus';
+import Appointments from './pages/student/Appointments';
+import History from './pages/student/History';
+import Settings from './pages/student/Settings';
+import Help from './pages/student/Help';
+import ReportIssue from './pages/student/ReportIssue';
 
 function MainApp(){
   const[currScreen, SetCurrScreen]=useState('dashboard');
@@ -99,6 +104,12 @@ export default function App(){
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />}/>
         <Route path="/dashboard" element={<MainApp />} />
+
+        <Route path="/appointments" element={<Appointments />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/help" element={<Help />} />
+        <Route path="/report-issue" element={<ReportIssue />} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
