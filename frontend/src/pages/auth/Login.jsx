@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import nebbLogo from "../../assets/QS Logo.png";
 import "../../styles/Auth.css";
 
 function Login(){
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
 
 
-    function handleSubmit(event){
-        event.preventDefault();
-        console.log("Login Submitted");
+    function handleSubmit(event) {
+    event.preventDefault();
+
+    navigate("/dashboard");
     }
     return (
     <div className="auth-page">
@@ -30,6 +32,7 @@ function Login(){
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
+                    minLength={8}
                     required
                 />
 
@@ -38,6 +41,7 @@ function Login(){
                     type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    minLength={8}
                     required
                 />
 
