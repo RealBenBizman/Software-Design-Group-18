@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
 import {
   BrowserRouter,
   Routes,
   Route,
-  Navigate,
-  useNavigate
+  Navigate
 } from 'react-router-dom';
 
 import Login from './pages/auth/Login';
@@ -13,22 +11,21 @@ import Register from './pages/auth/Register';
 import Dashboard from './Pages/Dashboard';
 import JoinQueue from './Pages/JoinQueue';
 import QueueStatus from './Pages/QueueStatus';
+
 import Appointments from './pages/student/Appointments';
 import History from './pages/student/History';
 import Settings from './pages/student/Settings';
 import Help from './pages/student/Help';
 import ReportIssue from './pages/student/ReportIssue';
 
+import StudentNavbar from './components/StudentNavbar';
 
-function MainApp() {
-  const [currScreen, SetCurrScreen] = useState('dashboard');
-  const navigate = useNavigate();
 
-  // Simulated logout for frontend-only application
-  function handleLogout() {
-    navigate('/login');
-  }
-
+/*
+  Shared layout for all student pages.
+  The navbar stays visible while the page content changes.
+*/
+function StudentLayout({ children }) {
   return (
     <div
       style={{
@@ -37,123 +34,11 @@ function MainApp() {
         fontFamily: 'sans-serif'
       }}
     >
+      <StudentNavbar />
 
-      {/* Navigation Bar */}
-      <nav
-        style={{
-          backgroundColor: '#000080',
-          paddingTop: '14px',
-          paddingBottom: '14px',
-          paddingRight: '28px',
-          paddingLeft: '14px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 3px 6px rgba(0,0,0,0.1)'
-        }}
-      >
-
-        {/* Program Name */}
-        <div
-          style={{
-            color: '#ffffff',
-            fontSize: '25px',
-            fontWeight: 'bold',
-            letterSpacing: '1px',
-            marginLeft: '0px'
-          }}
-        >
-          NEBB Queue
-        </div>
-
-        {/* Top Navigation Buttons */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px'
-          }}
-        >
-
-          {/* Dashboard */}
-          <button
-            onClick={() => SetCurrScreen('dashboard')}
-            style={{
-              padding: '8px 15px',
-              backgroundColor:
-                currScreen === 'dashboard' ? '#82C8E5' : 'transparent',
-              color:
-                currScreen === 'dashboard' ? '#000080' : 'white',
-              border: '2px solid #82C8E5',
-              borderRadius: '5px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Dashboard
-          </button>
-
-          {/* Join Queue */}
-          <button
-            onClick={() => SetCurrScreen('join')}
-            style={{
-              padding: '8px 15px',
-              backgroundColor:
-                currScreen === 'join' ? '#82C8E5' : 'transparent',
-              color:
-                currScreen === 'join' ? '#000080' : 'white',
-              border: '2px solid #82C8E5',
-              borderRadius: '5px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Join Queue
-          </button>
-
-          {/* Queue Status */}
-          <button
-            onClick={() => SetCurrScreen('status')}
-            style={{
-              padding: '8px 15px',
-              backgroundColor:
-                currScreen === 'status' ? '#82C8E5' : 'transparent',
-              color:
-                currScreen === 'status' ? '#000080' : 'white',
-              border: '2px solid #82C8E5',
-              borderRadius: '5px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Queue Status
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '8px 15px',
-              backgroundColor: 'transparent',
-              color: 'white',
-              border: '2px solid white',
-              borderRadius: '5px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Logout
-          </button>
-
-        </div>
-      </nav>
-
-      {/* Display Selected Screen */}
       <main style={{ padding: '18px' }}>
-        {currScreen === 'dashboard' && <Dashboard />}
-        {currScreen === 'join' && <JoinQueue />}
-        {currScreen === 'status' && <QueueStatus />}
+        {children}
       </main>
-
     </div>
   );
 }
@@ -181,39 +66,86 @@ export default function App() {
           element={<Register />}
         />
 
-        {/* Main Student Application */}
+
+        {/* Student Queue Pages */}
+
         <Route
           path="/dashboard"
-          element={<MainApp />}
+          element={
+            <StudentLayout>
+              <Dashboard />
+            </StudentLayout>
+          }
         />
 
-        {/* Student Pages */}
+        <Route
+          path="/join-queue"
+          element={
+            <StudentLayout>
+              <JoinQueue />
+            </StudentLayout>
+          }
+        />
+
+        <Route
+          path="/queue-status"
+          element={
+            <StudentLayout>
+              <QueueStatus />
+            </StudentLayout>
+          }
+        />
+
+
+        {/* Student Account Pages */}
+
         <Route
           path="/appointments"
-          element={<Appointments />}
+          element={
+            <StudentLayout>
+              <Appointments />
+            </StudentLayout>
+          }
         />
 
         <Route
           path="/history"
-          element={<History />}
+          element={
+            <StudentLayout>
+              <History />
+            </StudentLayout>
+          }
         />
 
         <Route
           path="/settings"
-          element={<Settings />}
+          element={
+            <StudentLayout>
+              <Settings />
+            </StudentLayout>
+          }
         />
 
         <Route
           path="/help"
-          element={<Help />}
+          element={
+            <StudentLayout>
+              <Help />
+            </StudentLayout>
+          }
         />
 
         <Route
           path="/report-issue"
-          element={<ReportIssue />}
+          element={
+            <StudentLayout>
+              <ReportIssue />
+            </StudentLayout>
+          }
         />
 
-        {/* Unknown URL -> Login */}
+
+        {/* Unknown URL */}
         <Route
           path="*"
           element={<Navigate to="/login" replace />}
