@@ -1,0 +1,69 @@
+function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
+  const goTo = (nextPage) => {
+    setPage(nextPage);
+    setMenuOpen(false);
+  };
+
+  return (
+    <>
+      {menuOpen && (
+        <button
+          className="admin-menu-overlay"
+          onClick={() => setMenuOpen(false)}
+          aria-label="close menu"
+        />
+      )}
+
+      <aside className={`admin-sidebar ${menuOpen ? "show-menu" : ""}`}>
+        <div className="admin-brand">
+          <h1>QueueSmart</h1>
+          <p>administrator portal</p>
+        </div>
+
+        <nav className="admin-nav">
+          <button
+            className={page === "dashboard" ? "admin-nav-active" : ""}
+            onClick={() => goTo("dashboard")}
+          >
+            Dashboard
+          </button>
+
+          <button
+            className={page === "queues" ? "admin-nav-active" : ""}
+            onClick={() => goTo("queues")}
+          >
+            Queue Management
+          </button>
+
+          <button
+            className={page === "services" ? "admin-nav-active" : ""}
+            onClick={() => goTo("services")}
+          >
+            Service Management
+          </button>
+
+          <button
+            className={page === "employees" ? "admin-nav-active" : ""}
+            onClick={() => goTo("employees")}
+          >
+            Employees
+          </button>
+
+          <button
+            className={page === "reports" ? "admin-nav-active" : ""}
+            onClick={() => goTo("reports")}
+          >
+            Reports
+          </button>
+        </nav>
+
+        <div className="admin-sidebar-bottom">
+          <span>signed in as</span>
+          <strong>Administrator</strong>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+export default AdminSidebar;
