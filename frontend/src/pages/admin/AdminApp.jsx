@@ -218,7 +218,7 @@ function AdminApp() {
 
           <div className="admin-mobile-brand">
             <span>administrator portal</span>
-            <strong>QueueSmart</strong>
+            <strong>NEBB Queue</strong>
           </div>
 
           <div className="admin-profile">

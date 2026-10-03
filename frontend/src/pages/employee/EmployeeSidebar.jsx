@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+
 function EmployeeSidebar({
   page,
   setPage,
@@ -5,9 +7,19 @@ function EmployeeSidebar({
   menuOpen,
   setMenuOpen,
 }) {
+  const navigate = useNavigate();
   const goTo = (nextPage) => {
     setPage(nextPage);
     setMenuOpen(false);
+  };
+
+  const goToRoute = (route) => {
+    setMenuOpen(false);
+    navigate(route);
+  };
+
+  const signOut = () => {
+    navigate("/login");
   };
 
   return (
@@ -22,7 +34,7 @@ function EmployeeSidebar({
 
       <aside className={`employee-sidebar ${menuOpen ? "show-menu" : ""}`}>
         <div className="sidebar-brand">
-          <h1>QueueSmart</h1>
+          <h1>NEBB Queue</h1>
           <p>employee portal</p>
         </div>
 
@@ -54,6 +66,18 @@ function EmployeeSidebar({
           >
             Choose Service
           </button>
+
+          <button onClick={() => goToRoute("/settings")}>
+            Settings
+          </button>
+
+          <button onClick={() => goToRoute("/help")}>
+            Help
+          </button>
+
+          <button onClick={() => goToRoute("/report-issue")}>
+            Report Issue
+          </button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -61,6 +85,13 @@ function EmployeeSidebar({
           <strong>
             {selectedService ? selectedService.name : "no service selected"}
           </strong>
+
+          <button
+            className="sign-out-button"
+            onClick={signOut}
+          >
+            Sign Out
+          </button>
         </div>
       </aside>
     </>

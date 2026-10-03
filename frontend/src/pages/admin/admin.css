@@ -49,6 +49,21 @@ button:disabled {
   z-index: 20;
 }
 
+.admin-sign-out-button {
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px;
+  background: transparent;
+  color: white;
+  border: 1px solid #82c8e5;
+  border-radius: 7px;
+  font-weight: bold;
+}
+
+.admin-sign-out-button:hover {
+  background: #0047ab;
+}
+
 .admin-brand {
   padding: 0 10px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);

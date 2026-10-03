@@ -105,6 +105,21 @@ button:disabled {
   line-height: 1.4;
 }
 
+.sign-out-button {
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px;
+  background: transparent;
+  color: white;
+  border: 1px solid #82c8e5;
+  border-radius: 7px;
+  font-weight: bold;
+}
+
+.sign-out-button:hover {
+  background: #0047ab;
+}
+
 .employee-main {
   width: calc(100% - 250px);
   margin-left: 250px;

@@ -1,7 +1,19 @@
+import { useNavigate } from "react-router-dom";
+
 function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
+  const navigate = useNavigate();
   const goTo = (nextPage) => {
     setPage(nextPage);
     setMenuOpen(false);
+  };
+
+  const goToSettings = () => {
+    setMenuOpen(false);
+    navigate("/settings");
+  };
+
+  const signOut = () => {
+    navigate("/login");
   };
 
   return (
@@ -16,7 +28,7 @@ function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
 
       <aside className={`admin-sidebar ${menuOpen ? "show-menu" : ""}`}>
         <div className="admin-brand">
-          <h1>QueueSmart</h1>
+          <h1>NEBB Queue</h1>
           <p>administrator portal</p>
         </div>
 
@@ -55,11 +67,22 @@ function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
           >
             Reports
           </button>
+
+          <button onClick={goToSettings}>
+            Settings
+          </button>
         </nav>
 
         <div className="admin-sidebar-bottom">
           <span>signed in as</span>
           <strong>Administrator</strong>
+
+          <button
+            className="admin-sign-out-button"
+            onClick={signOut}
+          >
+            Sign Out
+          </button>
         </div>
       </aside>
     </>

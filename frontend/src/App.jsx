@@ -6,14 +6,16 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 
 
-import Dashboard from './Pages/Dashboard';
-import JoinQueue from './Pages/JoinQueue';
-import QueueStatus from './Pages/QueueStatus';
+import Dashboard from './pages/Dashboard';
+import JoinQueue from './pages/JoinQueue';
+import QueueStatus from './pages/QueueStatus';
 import Appointments from './pages/student/Appointments';
 import History from './pages/student/History';
 import Settings from './pages/student/Settings';
 import Help from './pages/student/Help';
 import ReportIssue from './pages/student/ReportIssue';
+import AdminApp from './pages/admin/AdminApp';
+import EmployeeApp from './pages/employee/EmployeeApp';
 
 function MainApp(){
   const[currScreen, SetCurrScreen]=useState('dashboard');
@@ -110,6 +112,9 @@ export default function App(){
         <Route path="/settings" element={<Settings />} />
         <Route path="/help" element={<Help />} />
         <Route path="/report-issue" element={<ReportIssue />} />
+
+        <Route path="/admin" element={<AdminApp />} />
+        <Route path="/employee" element={<EmployeeApp />} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

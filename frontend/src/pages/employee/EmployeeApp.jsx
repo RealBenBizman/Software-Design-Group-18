@@ -204,7 +204,7 @@ function EmployeeApp() {
 
           <div>
             <span className="topbar-role">employee portal</span>
-            <strong>QueueSmart</strong>
+            <strong>NEBB Queue</strong>
           </div>
 
           <div className="employee-profile">
