@@ -1,9 +1,16 @@
+
 import React,{useState} from 'react';
+import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
+
+import Login from './Pages/auth/Login';
+import Register from './Pages/auth/Register';
+
+
 import Dashboard from './Pages/Dashboard';
 import JoinQueue from './Pages/JoinQueue';
 import QueueStatus from './Pages/QueueStatus';
 
-function App(){
+function MainApp(){
   const[currScreen, SetCurrScreen]=useState('dashboard');
 
   return (
@@ -80,9 +87,23 @@ function App(){
         {currScreen==='status' && <QueueStatus />}
       </main>
     </div>
+  );
+}
+export default function App(){
+  return (
+    <BrowserRouter>
+    
+    
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />}/>
+        <Route path="/dashboard" element={<MainApp />} />
 
-  
+        <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+    </BrowserRouter>
   );
 }
 
-export default App;
+
