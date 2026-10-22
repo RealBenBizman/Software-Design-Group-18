@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const emptyForm = {
   name: "",
   description: "",
-  duration: "",
+  expectedDuration: "",
   priority: "",
 };
 
@@ -12,16 +12,12 @@ function ServiceManagement({ services, onAddService, onEditService }) {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!showForm) {
-      setError("");
-    }
-  }, [showForm]);
+  const [saving, setSaving] = useState(false);
 
   const startAdd = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setError("");
     setShowForm(true);
   };
 
@@ -30,9 +26,10 @@ function ServiceManagement({ services, onAddService, onEditService }) {
     setForm({
       name: service.name,
       description: service.description,
-      duration: service.duration,
+      expectedDuration: service.expectedDuration,
       priority: service.priority,
     });
+    setError("");
     setShowForm(true);
   };
 
@@ -52,13 +49,13 @@ function ServiceManagement({ services, onAddService, onEditService }) {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (
       !form.name.trim() ||
       !form.description.trim() ||
-      !form.duration ||
+      !form.expectedDuration ||
       !form.priority
     ) {
       setError("Please fill in all required fields.");
@@ -70,7 +67,7 @@ function ServiceManagement({ services, onAddService, onEditService }) {
       return;
     }
 
-    if (Number(form.duration) < 1) {
+    if (Number(form.expectedDuration) < 1) {
       setError("Expected duration must be at least 1 minute.");
       return;
     }
@@ -78,14 +75,19 @@ function ServiceManagement({ services, onAddService, onEditService }) {
     const serviceData = {
       name: form.name.trim(),
       description: form.description.trim(),
-      duration: Number(form.duration),
+      expectedDuration: Number(form.expectedDuration),
       priority: form.priority,
     };
 
-    if (editingId) {
-      onEditService(editingId, serviceData);
-    } else {
-      onAddService(serviceData);
+    setSaving(true);
+    const result = editingId
+      ? await onEditService(editingId, serviceData)
+      : await onAddService(serviceData);
+    setSaving(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
     }
 
     cancelForm();
@@ -132,6 +134,7 @@ function ServiceManagement({ services, onAddService, onEditService }) {
               Description *
               <textarea
                 name="description"
+                maxLength="500"
                 value={form.description}
                 onChange={handleChange}
                 rows="4"
@@ -143,9 +146,9 @@ function ServiceManagement({ services, onAddService, onEditService }) {
               Expected Duration *
               <input
                 type="number"
-                name="duration"
+                name="expectedDuration"
                 min="1"
-                value={form.duration}
+                value={form.expectedDuration}
                 onChange={handleChange}
                 required
               />
@@ -175,7 +178,11 @@ function ServiceManagement({ services, onAddService, onEditService }) {
             >
               Cancel
             </button>
-            <button type="submit" className="admin-button-primary">
+            <button
+              type="submit"
+              className="admin-button-primary"
+              disabled={saving}
+            >
               {editingId ? "Save Changes" : "Create Service"}
             </button>
           </div>
@@ -209,7 +216,7 @@ function ServiceManagement({ services, onAddService, onEditService }) {
 
             <div className="admin-service-card-info">
               <span>
-                Duration: <strong>{service.duration} min</strong>
+                Duration: <strong>{service.expectedDuration} min</strong>
               </span>
               <span>
                 Priority: <strong>{service.priority}</strong>
