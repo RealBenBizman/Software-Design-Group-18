@@ -1,4 +1,7 @@
+
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import EmployeeSidebar from "./EmployeeSidebar";
 import EmployeeDashboard from "./EmployeeDashboard";
 import ServiceSelection from "./ServiceSelection";
@@ -19,6 +22,43 @@ function EmployeeApp() {
   const [appointments, setAppointments] = useState(initialAppointments);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [viewingServiceId, setViewingServiceId] = useState(null);
+
+  // Authentication: Employee logout
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+
+  async function handleLogout() {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+    setLogoutError("");
+
+    try {
+      const response = await fetch(
+        "http://localhost:3001/api/auth/logout",
+        {
+          method: "POST",
+          credentials: "include"
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Logout failed");
+      }
+
+      navigate("/staff-login", { replace: true });
+
+    } catch (error) {
+      console.error("Employee logout error:", error);
+      setLogoutError("Unable to log out. Please try again.");
+
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   const selectedService = services.find(
     (service) => service.id === selectedServiceId
@@ -209,14 +249,44 @@ function EmployeeApp() {
 
           <div className="employee-profile">
             <span>JS</span>
+
             <div>
               <strong>Jordan Smith</strong>
               <small>Employee</small>
             </div>
+
+            {/* Authentication: Employee logout button */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              style={{
+                marginLeft: "16px",
+                padding: "8px 14px",
+                borderRadius: "6px",
+                border: "1px solid #ddd",
+                backgroundColor: "#fff",
+                color: "#333",
+                cursor: loggingOut ? "not-allowed" : "pointer"
+              }}
+            >
+              {loggingOut ? "Logging out..." : "Logout"}
+            </button>
+
+            {logoutError && (
+              <span
+                role="alert"
+                style={{ color: "#b91c1c" }}
+              >
+                {logoutError}
+              </span>
+            )}
           </div>
         </header>
 
-        <div className="employee-content">{renderPage()}</div>
+        <div className="employee-content">
+          {renderPage()}
+        </div>
       </main>
     </div>
   );

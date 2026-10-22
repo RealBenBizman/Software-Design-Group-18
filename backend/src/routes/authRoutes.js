@@ -8,11 +8,20 @@ const {
     logout
 } = require("../controllers/authController");
 
+const {
+    requireAuth
+} = require("../middleware/authMiddleware");
+
 const router = express.Router();
 
+// Public authentication endpoints
 router.post("/register", register);
 router.post("/login", login);
-router.get("/me", getCurrentUser);
+
+// Session-protected endpoint
+router.get("/me", requireAuth, getCurrentUser);
+
+// Logout
 router.post("/logout", logout);
 
 module.exports = router;

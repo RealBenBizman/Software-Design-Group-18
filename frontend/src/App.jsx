@@ -50,12 +50,39 @@ function StudentLayout({ children }) {
 }
 
 
+/*
+  Displayed when a logged-in user attempts
+  to access a page outside their assigned role.
+*/
+function Unauthorized() {
+  return (
+    <div
+      style={{
+        textAlign: 'center',
+        padding: '80px 20px',
+        fontFamily: 'sans-serif'
+      }}
+    >
+      <h1>403 - Access Denied</h1>
+
+      <p>
+        You do not have permission to access this page.
+      </p>
+
+      <a href="/login">
+        Return to Login
+      </a>
+    </div>
+  );
+}
+
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* Authentication */}
+        {/* Public Authentication Pages */}
         <Route
           path="/"
           element={<Navigate to="/login" replace />}
@@ -76,9 +103,18 @@ export default function App() {
           element={<StaffLogin />}
         />
 
+        <Route
+          path="/unauthorized"
+          element={<Unauthorized />}
+        />
 
-        {/* Protected Student Pages */}
-        <Route element={<ProtectedRoute />}>
+
+        {/* Student-Only Pages */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['student']} />
+          }
+        >
 
           <Route
             path="/dashboard"
@@ -155,16 +191,30 @@ export default function App() {
         </Route>
 
 
-        {/* Staff Pages - Role Protection Coming Next */}
+        {/* Employee-Only Pages */}
         <Route
-          path="/admin"
-          element={<AdminApp />}
-        />
+          element={
+            <ProtectedRoute allowedRoles={['employee']} />
+          }
+        >
+          <Route
+            path="/employee"
+            element={<EmployeeApp />}
+          />
+        </Route>
 
+
+        {/* Admin-Only Pages */}
         <Route
-          path="/employee"
-          element={<EmployeeApp />}
-        />
+          element={
+            <ProtectedRoute allowedRoles={['admin']} />
+          }
+        >
+          <Route
+            path="/admin"
+            element={<AdminApp />}
+          />
+        </Route>
 
 
         {/* Unknown URL */}
