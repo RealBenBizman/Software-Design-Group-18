@@ -51,7 +51,7 @@ function Reports({ reports, activity, onUpdateReportStatus }) {
             <tbody>
               {reports.map((report) => (
                 <tr key={report.id}>
-                  <td>{report.date}</td>
+                  <td>{report.date || "—"}</td>
                   <td>{report.user}</td>
                   <td>{report.category}</td>
                   <td>{report.description}</td>
@@ -79,7 +79,7 @@ function Reports({ reports, activity, onUpdateReportStatus }) {
             <article className="admin-mobile-report-card" key={report.id}>
               <div className="admin-mobile-report-top">
                 <strong>Report #{report.id}</strong>
-                <span>{report.date}</span>
+                <span>{report.date || "—"}</span>
               </div>
 
               <h3>{report.category}</h3>

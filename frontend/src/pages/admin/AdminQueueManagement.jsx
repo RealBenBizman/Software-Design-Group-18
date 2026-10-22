@@ -59,7 +59,7 @@ function AdminQueueManagement({
             <strong>{queue.length}</strong> waiting
           </span>
           <span>
-            <strong>{service.duration} min</strong> expected duration
+            <strong>{service.expectedDuration} min</strong> expected duration
           </span>
           <span
             className={

@@ -1,3 +1,8 @@
+import { estimateWaitToJoin } from "./waitTime";
+
+// local date as YYYY-MM-DD, matching the backend appointment dates
+const getToday = () => new Date().toLocaleDateString("en-CA");
+
 function EmployeeDashboard({
   services,
   queues,
@@ -13,16 +18,20 @@ function EmployeeDashboard({
     return null;
   }
 
+  const today = getToday();
   const myQueue = queues[selectedService.id] || [];
   const myAppointments = appointments.filter(
     (appointment) =>
       appointment.serviceId === selectedService.id &&
-      appointment.date === "Today" &&
+      appointment.date === today &&
       appointment.status !== "completed" &&
       appointment.status !== "no show"
   );
 
-  const estimatedWait = myQueue.length * selectedService.minutesPerPerson;
+  const estimatedWait = estimateWaitToJoin(
+    myQueue,
+    selectedService.expectedDuration
+  );
 
   const nextAppointment = myAppointments[0];
 
@@ -155,7 +164,7 @@ function EmployeeDashboard({
                     <h4>{service.name}</h4>
                     <p>
                       {queue.length} waiting · about{" "}
-                      {queue.length * service.minutesPerPerson} min
+                      {estimateWaitToJoin(queue, service.expectedDuration)} min
                     </p>
                   </div>
 

@@ -6,6 +6,7 @@ function EmployeeSidebar({
   selectedService,
   menuOpen,
   setMenuOpen,
+  onSignOut,
 }) {
   const navigate = useNavigate();
   const goTo = (nextPage) => {
@@ -16,10 +17,6 @@ function EmployeeSidebar({
   const goToRoute = (route) => {
     setMenuOpen(false);
     navigate(route);
-  };
-
-  const signOut = () => {
-    navigate("/login");
   };
 
   return (
@@ -88,7 +85,7 @@ function EmployeeSidebar({
 
           <button
             className="sign-out-button"
-            onClick={signOut}
+            onClick={onSignOut}
           >
             Sign Out
           </button>

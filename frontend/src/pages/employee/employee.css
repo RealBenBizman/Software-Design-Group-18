@@ -573,7 +573,8 @@ button:disabled {
 }
 
 .read-only-message,
-.success-message {
+.success-message,
+.error-message {
   border-radius: 8px;
   padding: 12px 15px;
   margin-bottom: 16px;
@@ -583,6 +584,18 @@ button:disabled {
 .read-only-message {
   background: #eef3f6;
   color: #546879;
+}
+
+.error-message {
+  background: #fdecec;
+  color: #9f2424;
+}
+
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .success-message {
