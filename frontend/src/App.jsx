@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter,
   Routes,
@@ -18,10 +19,12 @@ import History from './pages/student/History';
 import Settings from './pages/student/Settings';
 import Help from './pages/student/Help';
 import ReportIssue from './pages/student/ReportIssue';
+
 import AdminApp from './pages/admin/AdminApp';
 import EmployeeApp from './pages/employee/EmployeeApp';
 
 import StudentNavbar from './components/StudentNavbar';
+import ProtectedRoute from './components/ProtectedRoute';
 
 
 /*
@@ -50,7 +53,6 @@ function StudentLayout({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
         {/* Authentication */}
@@ -69,85 +71,100 @@ export default function App() {
           element={<Register />}
         />
 
-
-        {/* Student Queue Pages */}
         <Route
-          path="/dashboard"
-          element={
-            <StudentLayout>
-              <Dashboard />
-            </StudentLayout>
-          }
-        />
-
-        <Route
-          path="/join-queue"
-          element={
-            <StudentLayout>
-              <JoinQueue />
-            </StudentLayout>
-          }
-        />
-
-        <Route
-          path="/queue-status"
-          element={
-            <StudentLayout>
-              <QueueStatus />
-            </StudentLayout>
-          }
+          path="/staff-login"
+          element={<StaffLogin />}
         />
 
 
-        {/* Student Account Pages */}
+        {/* Protected Student Pages */}
+        <Route element={<ProtectedRoute />}>
+
+          <Route
+            path="/dashboard"
+            element={
+              <StudentLayout>
+                <Dashboard />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/join-queue"
+            element={
+              <StudentLayout>
+                <JoinQueue />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/queue-status"
+            element={
+              <StudentLayout>
+                <QueueStatus />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/appointments"
+            element={
+              <StudentLayout>
+                <Appointments />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <StudentLayout>
+                <History />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <StudentLayout>
+                <Settings />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/help"
+            element={
+              <StudentLayout>
+                <Help />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/report-issue"
+            element={
+              <StudentLayout>
+                <ReportIssue />
+              </StudentLayout>
+            }
+          />
+
+        </Route>
+
+
+        {/* Staff Pages - Role Protection Coming Next */}
         <Route
-          path="/appointments"
-          element={
-            <StudentLayout>
-              <Appointments />
-            </StudentLayout>
-          }
+          path="/admin"
+          element={<AdminApp />}
         />
 
         <Route
-          path="/history"
-          element={
-            <StudentLayout>
-              <History />
-            </StudentLayout>
-          }
+          path="/employee"
+          element={<EmployeeApp />}
         />
-
-        <Route
-          path="/settings"
-          element={
-            <StudentLayout>
-              <Settings />
-            </StudentLayout>
-          }
-        />
-
-        <Route
-          path="/help"
-          element={
-            <StudentLayout>
-              <Help />
-            </StudentLayout>
-          }
-        />
-
-        <Route
-          path="/report-issue"
-          element={
-            <StudentLayout>
-              <ReportIssue />
-            </StudentLayout>
-          }
-        />
-
-        <Route path="/admin" element={<AdminApp />} />
-        
-        <Route path="/employee" element={<EmployeeApp />} />
 
 
         {/* Unknown URL */}
@@ -156,11 +173,7 @@ export default function App() {
           element={<Navigate to="/login" replace />}
         />
 
-        <Route path="/staff-login" 
-        element={<StaffLogin />}
-         />
-
-        </Routes>
+      </Routes>
     </BrowserRouter>
   );
 }
