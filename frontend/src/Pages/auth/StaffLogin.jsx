@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import nebbLogo from "../../assets/QS Logo.png";
@@ -6,17 +7,67 @@ import "../../styles/Auth.css";
 function StaffLogin() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("employee");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
 
-    function handleSubmit(event) {
+    async function handleSubmit(event) {
         event.preventDefault();
 
-        if (role === "admin") {
-            navigate("/admin");
-        } else {
-            navigate("/employee");
+        setError("");
+        setLoading(true);
+
+        try {
+            const response = await fetch(
+                "http://localhost:3001/api/auth/login",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Unable to sign in"
+                );
+            }
+
+            // The backend determines the user's role.
+            if (data.user.role === "admin") {
+                navigate("/admin", { replace: true });
+            } else if (data.user.role === "employee") {
+                navigate("/employee", { replace: true });
+            } else {
+                // A student account cannot access the staff portal.
+                await fetch(
+                    "http://localhost:3001/api/auth/logout",
+                    {
+                        method: "POST",
+                        credentials: "include"
+                    }
+                );
+
+                setError(
+                    "This account does not have staff access."
+                );
+            }
+
+        } catch (error) {
+            console.error("Staff login error:", error);
+            setError(error.message);
+
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -37,7 +88,9 @@ function StaffLogin() {
                     <input
                         type="email"
                         value={email}
-                        onChange={(event) => setEmail(event.target.value)}
+                        onChange={(event) =>
+                            setEmail(event.target.value)
+                        }
                         required
                     />
 
@@ -45,26 +98,34 @@ function StaffLogin() {
                     <input
                         type="password"
                         value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        onChange={(event) =>
+                            setPassword(event.target.value)
+                        }
                         minLength={8}
                         required
                     />
 
-                    <label>Role</label>
-                    <select
-                        value={role}
-                        onChange={(event) => setRole(event.target.value)}
-                        required
-                    >
-                        <option value="employee">Employee</option>
-                        <option value="admin">Admin</option>
-                    </select>
+                    {error && (
+                        <p
+                            role="alert"
+                            style={{ color: "red" }}
+                        >
+                            {error}
+                        </p>
+                    )}
 
-                    <button type="submit">Sign In</button>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                    >
+                        {loading ? "Signing In..." : "Sign In"}
+                    </button>
                 </form>
 
                 <p>
-                    <Link to="/login">← Back to student login</Link>
+                    <Link to="/login">
+                        ← Back to student login
+                    </Link>
                 </p>
             </div>
         </div>
