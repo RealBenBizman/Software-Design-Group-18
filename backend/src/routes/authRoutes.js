@@ -1,27 +1,29 @@
 
-const express = require("express");
+import express from "express";
 
-const {
-    register,
-    login,
-    getCurrentUser,
-    logout
-} = require("../controllers/authController");
+import {
+  register,
+  login,
+  getCurrentUser,
+  logout
+} from "../controllers/authController.js";
 
-const {
-    requireAuth
-} = require("../middleware/authMiddleware");
+import {
+  requireAuth
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Public authentication endpoints
+// Register a new student or applicant
 router.post("/register", register);
+
+// Login for students, employees, and admins
 router.post("/login", login);
 
-// Session-protected endpoint
+// Get the currently authenticated user
 router.get("/me", requireAuth, getCurrentUser);
 
-// Logout
+// Logout and destroy the session
 router.post("/logout", logout);
 
-module.exports = router;
+export default router;

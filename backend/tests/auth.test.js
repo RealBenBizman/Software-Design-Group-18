@@ -1,16 +1,15 @@
+import request from "supertest";
+import express from "express";
+import session from "express-session";
+import bcrypt from "bcryptjs";
 
-const request = require("supertest");
-const express = require("express");
-const session = require("express-session");
-const bcrypt = require("bcryptjs");
+import app from "../src/app.js";
+import users from "../src/data/users.js";
 
-const app = require("../src/app");
-const users = require("../src/data/users");
-
-const {
-    requireAuth,
-    requireRole
-} = require("../src/middleware/authMiddleware");
+import {
+  requireAuth,
+  requireRole
+} from "../src/middleware/authMiddleware.js";
 
 // Test user information shared by all tests
 const validUser = {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { estimateWaitToJoin } from "./waitTime";
 
 function QueueManagement({
   services,
@@ -30,7 +31,7 @@ function QueueManagement({
 
   const queue = queues[service.id] || [];
   const canManage = service.id === selectedServiceId;
-  const estimatedWait = queue.length * service.minutesPerPerson;
+  const estimatedWait = estimateWaitToJoin(queue, service.expectedDuration);
 
   const serveNext = () => {
     if (!queue.length) {

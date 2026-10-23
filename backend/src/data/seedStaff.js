@@ -1,6 +1,6 @@
 
-const bcrypt = require("bcryptjs");
-const users = require("./users");
+import bcrypt from "bcryptjs";
+import users from "./users.js";
 
 async function seedStaff() {
     // Never create demo staff accounts in production.
@@ -65,4 +65,4 @@ async function seedStaff() {
     }
 }
 
-module.exports = seedStaff;
+export default seedStaff;

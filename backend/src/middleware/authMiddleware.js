@@ -1,5 +1,4 @@
-
-const users = require("../data/users");
+import users from "../data/users.js";
 
 // Check whether the request belongs to a logged-in user.
 function requireAuth(req, res, next) {
@@ -52,7 +51,4 @@ function requireRole(...allowedRoles) {
     };
 }
 
-module.exports = {
-    requireAuth,
-    requireRole
-};
+export { requireAuth, requireRole };

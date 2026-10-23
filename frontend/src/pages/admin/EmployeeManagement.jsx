@@ -13,6 +13,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
   const [form, setForm] = useState(emptyEmployee);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -23,7 +24,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setMessage("");
@@ -50,7 +51,8 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
       return;
     }
 
-    onAddEmployee({
+    setSaving(true);
+    const result = await onAddEmployee({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       email: form.email.trim(),
@@ -59,6 +61,12 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
       serviceId: null,
       status: "offline",
     });
+    setSaving(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
 
     setForm(emptyEmployee);
     setMessage("Employee was added successfully.");
@@ -100,6 +108,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
             <input
               type="text"
               name="firstName"
+              maxLength="50"
               value={form.firstName}
               onChange={handleChange}
               required
@@ -111,6 +120,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
             <input
               type="text"
               name="lastName"
+              maxLength="50"
               value={form.lastName}
               onChange={handleChange}
               required
@@ -122,6 +132,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
             <input
               type="email"
               name="email"
+              maxLength="100"
               value={form.email}
               onChange={handleChange}
               required
@@ -133,6 +144,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
             <input
               type="tel"
               name="phone"
+              maxLength="20"
               value={form.phone}
               onChange={handleChange}
               required
@@ -165,7 +177,11 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
         </div>
 
         <div className="admin-form-actions">
-          <button type="submit" className="admin-button-primary">
+          <button
+            type="submit"
+            className="admin-button-primary"
+            disabled={saving}
+          >
             Create Employee
           </button>
         </div>

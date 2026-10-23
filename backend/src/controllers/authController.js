@@ -1,6 +1,5 @@
-
-const bcrypt = require("bcryptjs");
-const users = require("../data/users");
+import bcrypt from "bcryptjs";
+import users from "../data/users.js";
 
 async function register(req, res) {
     try {
@@ -276,10 +275,9 @@ function logout(req, res) {
     });
 }
 
-module.exports = {
+export {
     register,
     login,
     getCurrentUser,
     logout
 };
-
