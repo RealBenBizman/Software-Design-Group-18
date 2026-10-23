@@ -8,14 +8,15 @@ import {
 
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import StaffLogin from './pages/auth/StaffLogin';
+import StaffLogin from './Pages/auth/StaffLogin';
 
-import Dashboard from './pages/Dashboard';
-import JoinQueue from './pages/JoinQueue';
-import QueueStatus from './pages/QueueStatus';
+import Dashboard from './Pages/Dashboard';
+import JoinQueue from './Pages/JoinQueue';
+import QueueStatus from './Pages/QueueStatus';
 
 import Appointments from './pages/student/Appointments';
 import History from './pages/student/History';
+import Notifications from './pages/student/Notifications';
 import Settings from './pages/student/Settings';
 import Help from './pages/student/Help';
 import ReportIssue from './pages/student/ReportIssue';
@@ -175,6 +176,15 @@ export default function App() {
             element={
               <StudentLayout>
                 <Help />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/notifications"
+            element={
+              <StudentLayout>
+                <Notifications />
               </StudentLayout>
             }
           />

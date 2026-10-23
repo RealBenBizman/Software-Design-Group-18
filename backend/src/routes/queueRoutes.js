@@ -1,6 +1,8 @@
 import express from "express";
 import { store } from "../data/store.js";
 import { estimateWait } from "../utils/waitTime.js";
+import { recordQueueFinished } from "../services/queueActivity.js";
+import { createQueueNotification, notifyAlmostReady } from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -84,6 +86,7 @@ router.post("/:serviceId/serve-next", (req, res) => {
   const servedUser = queue.shift();
   servedUser.status = "served";
   store.activity.studentsServed += 1;
+  recordQueueFinished(serviceId, servedUser, "served");
 
   res.json({
     message: "next user is now being served",
@@ -112,6 +115,7 @@ router.delete("/:serviceId/users/:userId", (req, res) => {
   }
 
   const removed = queue.splice(index, 1)[0];
+  recordQueueFinished(serviceId, removed, "removed");
 
   res.json({
     message: "user removed from queue",
@@ -142,6 +146,9 @@ router.patch("/:serviceId/users/:userId/status", (req, res) => {
   }
 
   user.status = req.body.status;
+  if (user.status === "almost ready") {
+    createQueueNotification(serviceId, user, "almost-ready");
+  }
   res.json(user);
 });
 
@@ -168,6 +175,7 @@ router.patch("/:serviceId/reorder", (req, res) => {
 
   const [user] = queue.splice(fromIndex, 1);
   queue.splice(toIndex, 0, user);
+  notifyAlmostReady(serviceId);
 
   res.json(queue);
 });

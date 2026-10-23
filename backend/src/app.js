@@ -14,6 +14,8 @@ import employeeRoutes from "./routes/employeeRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import historyRoutes from "./routes/historyRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
 
@@ -68,6 +70,8 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/history", historyRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Handle unknown routes
 app.use((req, res) => {

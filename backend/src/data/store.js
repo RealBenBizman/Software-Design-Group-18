@@ -149,6 +149,8 @@ const prepareQueues = (queues) =>
   );
 
 export const store = {
+  history: [],
+  notifications: [],
   services: copy(startingServices),
   queues: prepareQueues(startingQueues),
   employees: copy(startingEmployees),
@@ -162,6 +164,8 @@ export const store = {
 };
 
 export function resetStore() {
+  store.history = [];
+  store.notifications = [];
   store.services = copy(startingServices);
   store.queues = prepareQueues(startingQueues);
   store.employees = copy(startingEmployees);
