@@ -1,10 +1,13 @@
-import React, {useState} from 'react';
+import React, {useState,useEffect} from 'react';
 const JoinQueue = () => {
     const [activeTab, setActiveTab]=useState('sameday'); // 'future appointment' or 'sameday queue'
 
 
 // Set up for Same day 
-const[selectedServiceId, setSelectedServiceId]= useState(1);
+const[selectedServiceId, setSelectedServiceId]= useState(()=>{
+    const saved=localStorage.getItem('selectedServiceId');
+    return saved ? parseInt(saved, 10) :1;
+});
 
 //Set up future appointments
 const[queueResult,setResult]=useState(null);
@@ -12,13 +15,45 @@ const[appointService, setAppointService]=useState('');
 const[appointDate, setAppointDate]=useState('');
 const[appointTime, setAppointTime]=useState('');
 const[formError, setFormError]=useState('');
+const[queueLive,setLiveQueue]=useState([]);
 
-const services =[
+const BaseServices =[
     { id:1, name: 'FAFSA and Application Assistance',wait:'40 min',people: 7},
     {id: 2, name: 'Scholarships and Grants', wait:'35 min',people: 4},
     {id: 3, name: 'Loans and Visiting Counselors', wait:'27 min',people:4},
     {id: 4, name: 'Awards and Payments', wait: '30 min', people: 5},
+
 ];
+const GetQueueData=async ()=> {
+    try{
+        const response =await fetch('/api/queue');
+        const data = await response.json();
+        if (response.ok && data.success)
+        {
+            setLiveQueue(data.queue);
+        }
+    }catch (error){
+        console.error('Error getting live queue: ',error);
+    }
+};
+
+useEffect(()=>{
+GetQueueData();
+const interval=setInterval(GetQueueData,5000);
+return ()=>clearInterval(interval);
+},[]);
+
+const services=BaseServices.map(service=>{
+    const peopleCt=queueLive.filter(item=>item.serviceID===service.name).length;
+    const waitMin=peopleCt * 5;
+
+    return{
+        ...service,
+        people: peopleCt,
+        wait: `${waitMin} min`
+    };
+});
+
 const handleJoinSameDay = async () => {
     const service = services.find((s) => s.id === selectedServiceId);
     try{
