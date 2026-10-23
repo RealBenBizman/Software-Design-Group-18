@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import nebbLogo from "../../assets/QS Logo.png";
 import "../../styles/Auth.css";
 
@@ -12,17 +13,70 @@ function Register() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    function handleSubmit(event) {
+    const navigate = useNavigate();
+
+    async function handleSubmit(event) {
         event.preventDefault();
 
+        // Check that passwords match
         if (password !== confirmPassword) {
             setError("Passwords do not match");
             return;
         }
 
+        // Validate password length
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters");
+            return;
+        }
+
         setError("");
-        console.log("Registration submitted");
+        setLoading(true);
+
+        try {
+            // Send registration details to the backend
+            const response = await fetch(
+                "http://localhost:3001/api/auth/register",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        userType,
+                        firstName,
+                        lastName,
+                        email,
+                        phone,
+                        password
+                    })
+                }
+            );
+
+            // Read the backend response
+            const data = await response.json();
+
+            // Handle registration errors
+            if (!response.ok) {
+                setError(data.error || "Registration failed");
+                return;
+            }
+
+            // Registration succeeded
+            console.log("Registration successful:", data.user);
+
+            // Redirect the user to the login page
+            navigate("/login");
+
+        } catch (error) {
+            console.error("Registration error:", error);
+            setError("Unable to connect to the server");
+
+        } finally {
+            setLoading(false);
+        }
     }
 
     return (
@@ -86,6 +140,7 @@ function Register() {
                         type="password"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
+                        minLength={8}
                         required
                     />
 
@@ -96,12 +151,17 @@ function Register() {
                         onChange={(event) =>
                             setConfirmPassword(event.target.value)
                         }
+                        minLength={8}
                         required
                     />
 
-                    {error && <p className="auth-error">{error}</p>}
+                    {error && (
+                        <p className="auth-error">{error}</p>
+                    )}
 
-                    <button type="submit">Create Account</button>
+                    <button type="submit" disabled={loading}>
+                        {loading ? "Creating Account..." : "Create Account"}
+                    </button>
                 </form>
 
                 <p>
@@ -114,3 +174,4 @@ function Register() {
 }
 
 export default Register;
+

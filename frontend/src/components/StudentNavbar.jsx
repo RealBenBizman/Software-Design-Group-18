@@ -1,13 +1,47 @@
+
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import '../styles/StudentNavbar.css';
 
 function StudentNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const navigate = useNavigate();
 
-  function handleLogout() {
-    navigate('/login');
+  async function handleLogout() {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
+    try {
+      const response = await fetch(
+        'http://localhost:3001/api/auth/logout',
+        {
+          method: 'POST',
+          credentials: 'include'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+
+      // Close the mobile navigation menu
+      setMenuOpen(false);
+
+      // Redirect after the server destroys the session
+      navigate('/login', { replace: true });
+
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Unable to log out. Please try again.');
+
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   function closeMenu() {
@@ -63,8 +97,9 @@ function StudentNavbar() {
         <button
           className="logout-button"
           onClick={handleLogout}
+          disabled={loggingOut}
         >
-          Logout
+          {loggingOut ? 'Logging out...' : 'Logout'}
         </button>
 
       </div>

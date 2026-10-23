@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter,
   Routes,
@@ -18,10 +19,12 @@ import History from './pages/student/History';
 import Settings from './pages/student/Settings';
 import Help from './pages/student/Help';
 import ReportIssue from './pages/student/ReportIssue';
+
 import AdminApp from './pages/admin/AdminApp';
 import EmployeeApp from './pages/employee/EmployeeApp';
 
 import StudentNavbar from './components/StudentNavbar';
+import ProtectedRoute from './components/ProtectedRoute';
 
 
 /*
@@ -47,13 +50,39 @@ function StudentLayout({ children }) {
 }
 
 
+/*
+  Displayed when a logged-in user attempts
+  to access a page outside their assigned role.
+*/
+function Unauthorized() {
+  return (
+    <div
+      style={{
+        textAlign: 'center',
+        padding: '80px 20px',
+        fontFamily: 'sans-serif'
+      }}
+    >
+      <h1>403 - Access Denied</h1>
+
+      <p>
+        You do not have permission to access this page.
+      </p>
+
+      <a href="/login">
+        Return to Login
+      </a>
+    </div>
+  );
+}
+
+
 export default function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
-        {/* Authentication */}
+        {/* Public Authentication Pages */}
         <Route
           path="/"
           element={<Navigate to="/login" replace />}
@@ -69,85 +98,123 @@ export default function App() {
           element={<Register />}
         />
 
-
-        {/* Student Queue Pages */}
         <Route
-          path="/dashboard"
-          element={
-            <StudentLayout>
-              <Dashboard />
-            </StudentLayout>
-          }
+          path="/staff-login"
+          element={<StaffLogin />}
         />
 
         <Route
-          path="/join-queue"
-          element={
-            <StudentLayout>
-              <JoinQueue />
-            </StudentLayout>
-          }
+          path="/unauthorized"
+          element={<Unauthorized />}
         />
 
+
+        {/* Student-Only Pages */}
         <Route
-          path="/queue-status"
           element={
-            <StudentLayout>
-              <QueueStatus />
-            </StudentLayout>
+            <ProtectedRoute allowedRoles={['student']} />
           }
-        />
+        >
+
+          <Route
+            path="/dashboard"
+            element={
+              <StudentLayout>
+                <Dashboard />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/join-queue"
+            element={
+              <StudentLayout>
+                <JoinQueue />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/queue-status"
+            element={
+              <StudentLayout>
+                <QueueStatus />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/appointments"
+            element={
+              <StudentLayout>
+                <Appointments />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <StudentLayout>
+                <History />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <StudentLayout>
+                <Settings />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/help"
+            element={
+              <StudentLayout>
+                <Help />
+              </StudentLayout>
+            }
+          />
+
+          <Route
+            path="/report-issue"
+            element={
+              <StudentLayout>
+                <ReportIssue />
+              </StudentLayout>
+            }
+          />
+
+        </Route>
 
 
-        {/* Student Account Pages */}
+        {/* Employee-Only Pages */}
         <Route
-          path="/appointments"
           element={
-            <StudentLayout>
-              <Appointments />
-            </StudentLayout>
+            <ProtectedRoute allowedRoles={['employee']} />
           }
-        />
+        >
+          <Route
+            path="/employee"
+            element={<EmployeeApp />}
+          />
+        </Route>
 
+
+        {/* Admin-Only Pages */}
         <Route
-          path="/history"
           element={
-            <StudentLayout>
-              <History />
-            </StudentLayout>
+            <ProtectedRoute allowedRoles={['admin']} />
           }
-        />
-
-        <Route
-          path="/settings"
-          element={
-            <StudentLayout>
-              <Settings />
-            </StudentLayout>
-          }
-        />
-
-        <Route
-          path="/help"
-          element={
-            <StudentLayout>
-              <Help />
-            </StudentLayout>
-          }
-        />
-
-        <Route
-          path="/report-issue"
-          element={
-            <StudentLayout>
-              <ReportIssue />
-            </StudentLayout>
-          }
-        />
-
-        <Route path="/admin" element={<AdminApp />} />
-        
-        <Route path="/employee" element={<EmployeeApp />} />
+        >
+          <Route
+            path="/admin"
+            element={<AdminApp />}
+          />
+        </Route>
 
 
         {/* Unknown URL */}
@@ -156,11 +223,7 @@ export default function App() {
           element={<Navigate to="/login" replace />}
         />
 
-        <Route path="/staff-login" 
-        element={<StaffLogin />}
-         />
-
-        </Routes>
+      </Routes>
     </BrowserRouter>
   );
 }
