@@ -39,6 +39,7 @@ app.post('/api/queue/join',(req,res)=> {
         });
     }
 
+    queue =queue.filter(item=>item.userID !==userID);
     const NewQueueItem={
         queueID:`q-${Date.now()}`,
         userID,
@@ -49,8 +50,9 @@ app.post('/api/queue/join',(req,res)=> {
     };
 
     queue.push(NewQueueItem);
+    const sameServiceQueue=queue.filter(item => item.serviceID ===serviceID);
 
-    const position=queue.length;
+    const position=sameServiceQueue.length;
     const estWait=position*AVG_SERVICE_TIME_MIN;
 
     return res.status(201).json({
@@ -95,8 +97,8 @@ app.post('/api/queue/leave',(req,res)=>{
 app.get('/api/queue/status/:userID',(req,res)=>
 {
     const{userID}=req.params;
-    const userIndex=queue.findIndex(item=>item.userID===userID);
-    if(userIndex===-1)
+    const userEntry=queue.find(item=>item.userID===userID);
+    if(!userEntry)
     {
         return res.status(200).json({
             success:true,
@@ -105,7 +107,8 @@ app.get('/api/queue/status/:userID',(req,res)=>
         });
     }
 
-    const userEntry=queue[userIndex];
+    const sameServiceQueue=queue.filter(item => item.serviceID===userEntry.serviceID);
+    const userIndex=sameServiceQueue.findIndex(item=>item.userID===userID);
     const position=userIndex + 1;
     const estWaitMinutes=position*AVG_SERVICE_TIME_MIN;
     return res.status(200).json({
