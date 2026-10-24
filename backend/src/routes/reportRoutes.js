@@ -1,7 +1,10 @@
 import express from "express";
 import { store } from "../data/store.js";
 
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+
 const router = express.Router();
+router.use(requireAuth, requireRole("admin"));
 
 router.get("/", (req, res) => {
   res.json(store.reports);

@@ -27,6 +27,7 @@ recordQueueHistory(1, { id: 8001, userId: 1, joinedAt: "2026-10-20T15:00:00Z" },
 recordQueueHistory(2, { id: 8002, userId: 1, joinedAt: "2026-10-21T15:00:00Z" }, "left");
 const currentVisit = { id: 8003, userId: 1, name: "Demo Student", priority: "normal", status: "waiting", joinedAt: new Date().toISOString() };
 store.queues[1] = [currentVisit];
+store.nextQueueEntryId = 8004;
 recordQueueJoined(1, currentVisit);
 
 const port = process.env.PORT || 3001;

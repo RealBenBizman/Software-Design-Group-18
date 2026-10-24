@@ -1,6 +1,7 @@
 
 import bcrypt from "bcryptjs";
 import users from "./users.js";
+import { store, reservedDemoUserIds } from "./store.js";
 
 async function seedStaff() {
     // Never create demo staff accounts in production.
@@ -52,15 +53,25 @@ async function seedStaff() {
             10
         );
 
+        const employee = account.role === "employee"
+            ? store.employees.find((item) => item.id === Number(process.env.DEV_EMPLOYEE_ID || 1))
+            : null;
+        if (account.role === "employee" && !employee) {
+            throw new Error("DEV_EMPLOYEE_ID must identify an existing employee");
+        }
+        let id = users.reduce((highest, user) => Math.max(highest, user.id), 0) + 1;
+        while (reservedDemoUserIds.has(id)) id += 1;
+        if (employee) employee.email = email;
         users.push({
-            id: users.length + 1,
-            firstName: account.firstName,
-            lastName: account.lastName,
+            id,
+            firstName: employee?.firstName || account.firstName,
+            lastName: employee?.lastName || account.lastName,
             email,
             phone: "",
             userType: "staff",
             passwordHash,
-            role: account.role
+            role: account.role,
+            employeeId: employee?.id
         });
     }
 }

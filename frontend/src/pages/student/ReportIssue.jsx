@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import "../../styles/Student.css";
+import { apiRequest } from "../../utils/api";
 
 function ReportIssue() {
   const [issueType, setIssueType] = useState("");
@@ -8,13 +9,27 @@ function ReportIssue() {
   const [description, setDescription] = useState("");
   const [message, setMessage] = useState("");
 
-  function handleSubmit(event) {
-    event.preventDefault();
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-    setMessage("Your report has been submitted.");
-    setIssueType("");
-    setSubject("");
-    setDescription("");
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+    setSaving(true);
+    try {
+      await apiRequest("/api/account/reports", {
+        method: "POST", body: JSON.stringify({ issueType, subject, description }),
+      });
+      setMessage("Your report has been submitted.");
+      setIssueType("");
+      setSubject("");
+      setDescription("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -59,12 +74,14 @@ function ReportIssue() {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               rows="6"
+              maxLength={1000}
               required
             />
 
+            {error && <p className="error-message" role="alert">{error}</p>}
             {message && <p className="success-message">{message}</p>}
 
-            <button type="submit">Submit Report</button>
+            <button type="submit" disabled={saving}>{saving ? "Submitting..." : "Submit Report"}</button>
           </form>
         </section>
       </div>

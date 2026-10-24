@@ -24,6 +24,7 @@ import ReportIssue from './pages/student/ReportIssue';
 import AdminApp from './pages/admin/AdminApp';
 import EmployeeApp from './pages/employee/EmployeeApp';
 
+import AccountLayout from './components/AccountLayout';
 import StudentNavbar from './components/StudentNavbar';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -162,23 +163,9 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/settings"
-            element={
-              <StudentLayout>
-                <Settings />
-              </StudentLayout>
-            }
-          />
 
-          <Route
-            path="/help"
-            element={
-              <StudentLayout>
-                <Help />
-              </StudentLayout>
-            }
-          />
+
+
 
           <Route
             path="/notifications"
@@ -189,17 +176,16 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/report-issue"
-            element={
-              <StudentLayout>
-                <ReportIssue />
-              </StudentLayout>
-            }
-          />
+
 
         </Route>
 
+
+        <Route element={<ProtectedRoute allowedRoles={['student', 'employee', 'admin']} />}>
+          <Route path="/settings" element={<AccountLayout><Settings /></AccountLayout>} />
+          <Route path="/help" element={<AccountLayout><Help /></AccountLayout>} />
+          <Route path="/report-issue" element={<AccountLayout><ReportIssue /></AccountLayout>} />
+        </Route>
 
         {/* Employee-Only Pages */}
         <Route

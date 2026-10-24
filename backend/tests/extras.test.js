@@ -1,35 +1,38 @@
-import request from "supertest";
-import app from "../src/app.js";
+import { staffSession } from "./helpers/staffSession.js";
+import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
 
-beforeEach(() => {
+let admin;
+beforeEach(async () => {
   resetStore();
+  users.length = 0;
+  admin = await staffSession();
 });
 
 describe("admin and employee extra pages", () => {
   test("gets admin dashboard", async () => {
-    const response = await request(app).get("/api/dashboard/admin");
+    const response = await admin.get("/api/dashboard/admin");
 
     expect(response.status).toBe(200);
     expect(response.body.activeServices).toBe(4);
   });
 
   test("gets employee dashboard", async () => {
-    const response = await request(app).get("/api/dashboard/employee/1");
+    const response = await admin.get("/api/dashboard/employee/1");
 
     expect(response.status).toBe(200);
     expect(response.body.service.id).toBe(1);
   });
 
   test("employee dashboard wait is for the next student to join", async () => {
-    const response = await request(app).get("/api/dashboard/employee/1");
+    const response = await admin.get("/api/dashboard/employee/1");
 
     // 3 waiting, so a new student is position 4: (4 - 1) * 20
     expect(response.body.estimatedWait).toBe(60);
   });
 
   test("gets service appointments", async () => {
-    const response = await request(app).get(
+    const response = await admin.get(
       "/api/appointments?serviceId=1"
     );
 
@@ -38,7 +41,7 @@ describe("admin and employee extra pages", () => {
   });
 
   test("updates appointment status", async () => {
-    const response = await request(app)
+    const response = await admin
       .patch("/api/appointments/1/status")
       .send({ status: "checked in" });
 
@@ -47,7 +50,7 @@ describe("admin and employee extra pages", () => {
   });
 
   test("gets reports", async () => {
-    const response = await request(app).get("/api/reports");
+    const response = await admin.get("/api/reports");
 
     expect(response.status).toBe(200);
     expect(response.body.length).toBe(2);
@@ -55,7 +58,7 @@ describe("admin and employee extra pages", () => {
   });
 
   test("updates report status", async () => {
-    const response = await request(app)
+    const response = await admin
       .patch("/api/reports/1001/status")
       .send({ status: "resolved" });
 

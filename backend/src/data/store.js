@@ -139,6 +139,12 @@ const startingReports = [
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
+export const reservedDemoUserIds = new Set([
+  ...Object.values(startingQueues).flat().map((entry) => entry.userId),
+  ...startingAppointments.map((entry) => entry.userId),
+  ...startingReports.map((entry) => entry.userId)
+]);
+
 // every queue is kept in serve order: priority first, then arrival
 const prepareQueues = (queues) =>
   Object.fromEntries(
@@ -149,6 +155,7 @@ const prepareQueues = (queues) =>
   );
 
 export const store = {
+  nextQueueEntryId: 402,
   history: [],
   notifications: [],
   services: copy(startingServices),
@@ -164,6 +171,7 @@ export const store = {
 };
 
 export function resetStore() {
+  store.nextQueueEntryId = 402;
   store.history = [];
   store.notifications = [];
   store.services = copy(startingServices);

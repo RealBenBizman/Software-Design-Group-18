@@ -25,7 +25,8 @@ function requireAuth(req, res, next) {
         lastName: user.lastName,
         email: user.email,
         userType: user.userType,
-        role: user.role
+        role: user.role,
+        employeeId: user.employeeId
     };
 
     next();

@@ -54,7 +54,7 @@ function Reports({ reports, activity, onUpdateReportStatus }) {
                   <td>{report.date || "—"}</td>
                   <td>{report.user}</td>
                   <td>{report.category}</td>
-                  <td>{report.description}</td>
+                  <td>{report.subject && <strong>{report.subject}<br /></strong>}{report.description}</td>
                   <td>
                     <select
                       className="admin-status-select"
@@ -83,6 +83,7 @@ function Reports({ reports, activity, onUpdateReportStatus }) {
               </div>
 
               <h3>{report.category}</h3>
+              {report.subject && <strong>{report.subject}</strong>}
               <p>{report.description}</p>
               <small>Submitted by {report.user}</small>
 
