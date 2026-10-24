@@ -8,14 +8,15 @@ import {
 
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import StaffLogin from './pages/auth/StaffLogin';
+import StaffLogin from './Pages/auth/StaffLogin';
 
-import Dashboard from './pages/Dashboard';
-import JoinQueue from './pages/JoinQueue';
-import QueueStatus from './pages/QueueStatus';
+import Dashboard from './Pages/Dashboard';
+import JoinQueue from './Pages/JoinQueue';
+import QueueStatus from './Pages/QueueStatus';
 
 import Appointments from './pages/student/Appointments';
 import History from './pages/student/History';
+import Notifications from './pages/student/Notifications';
 import Settings from './pages/student/Settings';
 import Help from './pages/student/Help';
 import ReportIssue from './pages/student/ReportIssue';
@@ -23,6 +24,7 @@ import ReportIssue from './pages/student/ReportIssue';
 import AdminApp from './pages/admin/AdminApp';
 import EmployeeApp from './pages/employee/EmployeeApp';
 
+import AccountLayout from './components/AccountLayout';
 import StudentNavbar from './components/StudentNavbar';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -161,35 +163,29 @@ export default function App() {
             }
           />
 
+
+
+
+
           <Route
-            path="/settings"
+            path="/notifications"
             element={
               <StudentLayout>
-                <Settings />
+                <Notifications />
               </StudentLayout>
             }
           />
 
-          <Route
-            path="/help"
-            element={
-              <StudentLayout>
-                <Help />
-              </StudentLayout>
-            }
-          />
 
-          <Route
-            path="/report-issue"
-            element={
-              <StudentLayout>
-                <ReportIssue />
-              </StudentLayout>
-            }
-          />
 
         </Route>
 
+
+        <Route element={<ProtectedRoute allowedRoles={['student', 'employee', 'admin']} />}>
+          <Route path="/settings" element={<AccountLayout><Settings /></AccountLayout>} />
+          <Route path="/help" element={<AccountLayout><Help /></AccountLayout>} />
+          <Route path="/report-issue" element={<AccountLayout><ReportIssue /></AccountLayout>} />
+        </Route>
 
         {/* Employee-Only Pages */}
         <Route

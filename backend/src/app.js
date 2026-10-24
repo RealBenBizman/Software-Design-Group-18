@@ -14,6 +14,11 @@ import employeeRoutes from "./routes/employeeRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import historyRoutes from "./routes/historyRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import studentQueueRoutes from "./routes/studentQueueRoutes.js";
+
+import accountRoutes from "./routes/accountRoutes.js";
 
 const app = express();
 
@@ -27,6 +32,10 @@ app.use(
 
 // Parse JSON requests
 app.use(express.json());
+app.use((req, res, next) => {
+  req.body ??= {};
+  next();
+});
 
 // Configure authentication sessions
 const isProduction = process.env.NODE_ENV === "production";
@@ -68,6 +77,10 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/history", historyRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/queue", studentQueueRoutes);
+app.use("/api/account", accountRoutes);
 
 // Handle unknown routes
 app.use((req, res) => {

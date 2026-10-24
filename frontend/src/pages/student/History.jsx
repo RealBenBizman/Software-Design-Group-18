@@ -1,21 +1,58 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../../styles/Student.css";
 
-// Dummy data
-const historyData = [
-  { id: 1, date: "September 18, 2026", service: "Financial Aid Counseling", type: "Queue", outcome: "Served" },
-  { id: 2, date: "September 12, 2026", service: "FAFSA & Application Help", type: "Queue", outcome: "Left Queue" },
-  { id: 3, date: "September 3, 2026", service: "Scholarships & Grants", type: "Appointment", outcome: "Served" },
-  { id: 4, date: "August 28, 2026", service: "Awards & Disbursement", type: "Appointment", outcome: "Cancelled" },
-];
+const outcomeLabels = {
+  waiting: "Waiting",
+  served: "Served",
+  left: "Left Queue",
+  removed: "Removed by Staff"
+};
 
 function History() {
+  const [history, setHistory] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
 
-  const filteredHistory = filter === "All"
-    ? historyData
-    : historyData.filter((item) => item.type === filter);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadHistory() {
+      try {
+        const response = await fetch("http://localhost:3001/api/history", {
+          credentials: "include",
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          throw new Error(response.status === 401
+            ? "Please log in again to view your history."
+            : "Unable to load your history. Please try again.");
+        }
+        const data = await response.json();
+        if (!controller.signal.aborted) {
+          setHistory(data);
+          setError("");
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadHistory();
+    return () => controller.abort();
+  }, [reload]);
+
+  const filteredHistory = history.filter((item) =>
+    filter === "All" || item.outcome === filter
+  );
 
   return (
     <div className="student-page">
@@ -23,47 +60,51 @@ function History() {
         <div className="student-heading">
           <div>
             <h1>History</h1>
-            <p>View your past queues and appointments.</p>
+            <p>View your queue visits and their outcomes.</p>
           </div>
-          <Link to="/appointments">Book Appointment</Link>
+          <Link to="/notifications">View Notifications</Link>
         </div>
 
-        <section className="student-card">
+        <section className="student-card" aria-label="Queue history">
           <div className="filter-row">
             <label htmlFor="history-filter">Show</label>
-            <select
-              id="history-filter"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-            >
-              <option value="All">All Activity</option>
-              <option value="Queue">Queues</option>
-              <option value="Appointment">Appointments</option>
+            <select id="history-filter" value={filter}
+              onChange={(event) => setFilter(event.target.value)}>
+              <option value="All">All Outcomes</option>
+              {Object.entries(outcomeLabels).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
+            <button type="button" disabled={loading} onClick={() => {
+              setLoading(true);
+              setReload((value) => value + 1);
+            }}>Refresh</button>
           </div>
 
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Service</th>
-                  <th>Type</th>
-                  <th>Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHistory.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.date}</td>
-                    <td>{item.service}</td>
-                    <td>{item.type}</td>
-                    <td><span className="status-label">{item.outcome}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {loading && <p role="status">Loading history...</p>}
+          {error && <p className="error-message" role="alert">{error}</p>}
+          {!loading && !error && filteredHistory.length === 0 && (
+            <p>No queue visits match this filter.</p>
+          )}
+          {!loading && !error && filteredHistory.length > 0 && (
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Service</th><th>Type</th><th>Outcome</th></tr>
+                </thead>
+                <tbody>
+                  {filteredHistory.map((item) => (
+                    <tr key={item.id}>
+                      <td>{new Date(item.joinedAt || item.endedAt).toLocaleString()}</td>
+                      <td>{item.service}</td>
+                      <td>{item.type}</td>
+                      <td><span className="status-label">{outcomeLabels[item.outcome]}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
     </div>

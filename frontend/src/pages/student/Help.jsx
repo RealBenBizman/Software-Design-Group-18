@@ -4,7 +4,7 @@ import "../../styles/Student.css";
 const questions = [
   {
     question: "How do I book an appointment?",
-    answer: "Open the Appointments page, select a service, choose a future date and time, and submit the form.",
+    answer: "Open the Appointments page, select a service, choose a future date and time, and confirm the booking.",
   },
   {
     question: "Can I book an appointment for today?",
@@ -12,11 +12,11 @@ const questions = [
   },
   {
     question: "How do I cancel an appointment?",
-    answer: "Find the appointment under Upcoming Appointments and select Cancel Appointment.",
+    answer: "Find the appointment under Your Appointments and select Cancel Appointment.",
   },
   {
-    question: "Where can I see my previous visits?",
-    answer: "The History page displays past queues and appointments with their dates and outcomes.",
+    question: "Where can I see my previous queue visits?",
+    answer: "The History page displays queue visits with their dates and outcomes.",
   },
   {
     question: "How do I update my profile?",

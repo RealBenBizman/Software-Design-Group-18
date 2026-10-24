@@ -1,27 +1,17 @@
 import express from "express";
 import { store } from "../data/store.js";
 import { estimateWait } from "../utils/waitTime.js";
+import { recordQueueFinished } from "../services/queueActivity.js";
+import { createQueueNotification, notifyAlmostReady } from "../services/notificationService.js";
+
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import { canManageService } from "../middleware/staffAccess.js";
 
 const router = express.Router();
+router.use(requireAuth, requireRole("admin", "employee"));
 
 function getService(serviceId) {
   return store.services.find((service) => service.id === serviceId);
-}
-
-function canEmployeeManage(employeeId, serviceId) {
-  const employee = store.employees.find(
-    (item) => item.id === Number(employeeId)
-  );
-
-  return employee && employee.serviceId === serviceId;
-}
-
-function allowedToManage(req, serviceId) {
-  if (req.body.role === "admin") {
-    return true;
-  }
-
-  return canEmployeeManage(req.body.employeeId, serviceId);
 }
 
 router.get("/:serviceId", (req, res) => {
@@ -71,7 +61,7 @@ router.post("/:serviceId/serve-next", (req, res) => {
     return res.status(404).json({ error: "service not found" });
   }
 
-  if (!allowedToManage(req, serviceId)) {
+  if (!canManageService(req.user, serviceId)) {
     return res.status(403).json({ error: "you cannot manage this queue" });
   }
 
@@ -84,6 +74,7 @@ router.post("/:serviceId/serve-next", (req, res) => {
   const servedUser = queue.shift();
   servedUser.status = "served";
   store.activity.studentsServed += 1;
+  recordQueueFinished(serviceId, servedUser, "served");
 
   res.json({
     message: "next user is now being served",
@@ -100,7 +91,7 @@ router.delete("/:serviceId/users/:userId", (req, res) => {
     return res.status(404).json({ error: "service not found" });
   }
 
-  if (!allowedToManage(req, serviceId)) {
+  if (!canManageService(req.user, serviceId)) {
     return res.status(403).json({ error: "you cannot manage this queue" });
   }
 
@@ -112,6 +103,7 @@ router.delete("/:serviceId/users/:userId", (req, res) => {
   }
 
   const removed = queue.splice(index, 1)[0];
+  recordQueueFinished(serviceId, removed, "removed");
 
   res.json({
     message: "user removed from queue",
@@ -124,7 +116,7 @@ router.patch("/:serviceId/users/:userId/status", (req, res) => {
   const serviceId = Number(req.params.serviceId);
   const userId = Number(req.params.userId);
 
-  if (!allowedToManage(req, serviceId)) {
+  if (!canManageService(req.user, serviceId)) {
     return res.status(403).json({ error: "you cannot manage this queue" });
   }
 
@@ -142,13 +134,16 @@ router.patch("/:serviceId/users/:userId/status", (req, res) => {
   }
 
   user.status = req.body.status;
+  if (user.status === "almost ready") {
+    createQueueNotification(serviceId, user, "almost-ready");
+  }
   res.json(user);
 });
 
 router.patch("/:serviceId/reorder", (req, res) => {
   const serviceId = Number(req.params.serviceId);
 
-  if (!allowedToManage(req, serviceId)) {
+  if (!canManageService(req.user, serviceId)) {
     return res.status(403).json({ error: "you cannot manage this queue" });
   }
 
@@ -168,6 +163,7 @@ router.patch("/:serviceId/reorder", (req, res) => {
 
   const [user] = queue.splice(fromIndex, 1);
   queue.splice(toIndex, 0, user);
+  notifyAlmostReady(serviceId);
 
   res.json(queue);
 });

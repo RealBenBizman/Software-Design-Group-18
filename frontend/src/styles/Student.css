@@ -192,6 +192,7 @@
 
 .filter-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-bottom: 22px;
@@ -203,6 +204,7 @@
 
 .filter-row select {
   width: auto;
+  max-width: 100%;
 }
 
 .table-wrapper {

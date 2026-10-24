@@ -1,7 +1,11 @@
 import express from "express";
 import { store } from "../data/store.js";
 
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import { canManageService } from "../middleware/staffAccess.js";
+
 const router = express.Router();
+router.use(requireAuth, requireRole("admin", "employee"));
 
 router.get("/", (req, res) => {
   const serviceId = req.query.serviceId
@@ -29,6 +33,10 @@ router.patch("/:id/status", (req, res) => {
     return res.status(404).json({ error: "appointment not found" });
   }
 
+  if (!canManageService(req.user, appointment.serviceId)) {
+    return res.status(403).json({ error: "you cannot manage this service" });
+  }
+
   const validStatuses = [
     "upcoming",
     "checked in",
@@ -40,13 +48,14 @@ router.patch("/:id/status", (req, res) => {
     return res.status(400).json({ error: "invalid appointment status" });
   }
 
+  const previousStatus = appointment.status;
   appointment.status = req.body.status;
 
-  if (req.body.status === "completed") {
+  if (req.body.status === "completed" && previousStatus !== "completed") {
     store.activity.appointmentsCompleted += 1;
   }
 
-  if (req.body.status === "no show") {
+  if (req.body.status === "no show" && previousStatus !== "no show") {
     store.activity.noShows += 1;
   }
 

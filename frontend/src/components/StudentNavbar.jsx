@@ -86,6 +86,10 @@ function StudentNavbar() {
           History
         </NavLink>
 
+        <NavLink to="/notifications" onClick={closeMenu}>
+          Notifications
+        </NavLink>
+
         <NavLink to="/settings" onClick={closeMenu}>
           Settings
         </NavLink>

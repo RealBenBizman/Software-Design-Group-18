@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
+function AdminSidebar({ page, setPage, menuOpen, setMenuOpen, onSignOut, loggingOut }) {
   const navigate = useNavigate();
   const goTo = (nextPage) => {
     setPage(nextPage);
@@ -10,10 +10,6 @@ function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
   const goToSettings = () => {
     setMenuOpen(false);
     navigate("/settings");
-  };
-
-  const signOut = () => {
-    navigate("/login");
   };
 
   return (
@@ -79,7 +75,8 @@ function AdminSidebar({ page, setPage, menuOpen, setMenuOpen }) {
 
           <button
             className="admin-sign-out-button"
-            onClick={signOut}
+            onClick={onSignOut}
+            disabled={loggingOut}
           >
             Sign Out
           </button>

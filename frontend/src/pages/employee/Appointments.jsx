@@ -29,7 +29,7 @@ function Appointments({
       <div className="page-heading">
         <div>
           <p className="eyebrow">appointments</p>
-          <h2>Today's Appointments</h2>
+          <h2>Appointments</h2>
           <p>
             You can update appointments for your assigned service and view the
             others.

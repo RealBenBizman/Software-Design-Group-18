@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../../utils/api";
 
 import EmployeeSidebar from "./EmployeeSidebar";
 import EmployeeDashboard from "./EmployeeDashboard";
@@ -9,10 +10,7 @@ import QueueManagement from "./QueueManagement";
 import Appointments from "./Appointments";
 import "./employee.css";
 
-const API = "http://localhost:3001";
 
-// Temporary employee ID until employee records are linked to auth
-const EMPLOYEE_ID = 1;
 
 function EmployeeApp() {
   const navigate = useNavigate();
@@ -20,6 +18,7 @@ function EmployeeApp() {
   const [page, setPage] = useState("services");
   const [menuOpen, setMenuOpen] = useState(false);
   const [services, setServices] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [queues, setQueues] = useState({});
   const [appointments, setAppointments] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
@@ -29,50 +28,47 @@ function EmployeeApp() {
   const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
-    async function getJson(path) {
-      const res = await fetch(`${API}${path}`);
-
-      if (!res.ok) {
-        throw new Error(`${path} returned ${res.status}`);
-      }
-
-      return res.json();
-    }
+    const controller = new AbortController();
+    let loading = false;
+    let initialLoad = true;
+    const getJson = (path) => apiRequest(path, { signal: controller.signal });
 
     async function loadAll() {
+      if (loading) return;
+      loading = true;
       try {
         const servicesData = await getJson("/api/services");
-        setServices(servicesData);
-
-        const queueEntries = await Promise.all(
-          servicesData.map(async (service) => {
-            const data = await getJson(`/api/queues/${service.id}`);
-            return [service.id, data.queue];
-          })
-        );
-
-        setQueues(Object.fromEntries(queueEntries));
-
-        setAppointments(await getJson("/api/appointments"));
-
-        const dashData = await getJson(
-          `/api/dashboard/employee/${EMPLOYEE_ID}`
-        );
-
-        const assignedServiceId = dashData.employee.serviceId;
-
-        if (assignedServiceId) {
-          setSelectedServiceId(assignedServiceId);
-          setViewingServiceId(assignedServiceId);
-          setPage("dashboard");
+        const queueEntries = await Promise.all(servicesData.map(async (service) => {
+          const data = await getJson(`/api/queues/${service.id}`);
+          return [service.id, data.queue];
+        }));
+        const [appointmentsData, dashData] = await Promise.all([
+          getJson("/api/appointments"), getJson("/api/dashboard/employee/me"),
+        ]);
+        if (controller.signal.aborted) return;
+        setAppointments(appointmentsData);
+        setProfile(dashData.employee);
+        setSelectedServiceId(dashData.employee.serviceId);
+        if (initialLoad) {
+          setViewingServiceId(dashData.employee.serviceId);
+          setPage(dashData.employee.serviceId ? "dashboard" : "services");
+          initialLoad = false;
         }
+        setServices(servicesData);
+        setQueues(Object.fromEntries(queueEntries));
       } catch (error) {
-        console.error("Failed to load employee data:", error);
-        setLoadError("Could not reach the server. Please try again.");
+        if (error.name !== "AbortError") setLoadError(error.message);
+      } finally {
+        loading = false;
       }
     }
 
     loadAll();
+    const timer = setInterval(loadAll, 5000);
+    return () => {
+      clearInterval(timer);
+      controller.abort();
+    };
   }, []);
 
   // End the employee's authentication session
@@ -83,14 +79,7 @@ function EmployeeApp() {
     setLogoutError("");
 
     try {
-      const response = await fetch(`${API}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Logout failed");
-      }
+      await apiRequest("/api/auth/logout", { method: "POST" });
 
       navigate("/staff-login", { replace: true });
     } catch (error) {
@@ -101,187 +90,84 @@ function EmployeeApp() {
     }
   }
 
-  const selectedService = services.find(
-    (service) => service.id === selectedServiceId
-  );
+  const selectedService = services.find((service) => service.id === selectedServiceId);
 
-  const chooseService = async (serviceId) => {
-    const res = await fetch(`${API}/api/employees/${EMPLOYEE_ID}/service`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId }),
-    });
-
-    if (res.ok) {
-      setSelectedServiceId(serviceId);
-      setViewingServiceId(serviceId);
-      setPage("dashboard");
-    }
-  };
-
-  const toggleQueue = async (serviceId) => {
-    if (serviceId !== selectedServiceId) return;
-
-    const service = services.find((s) => s.id === serviceId);
-
-    const res = await fetch(`${API}/api/services/${serviceId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ open: !service.open }),
-    });
-
-    const updated = await res.json();
-
-    if (res.ok) {
-      setServices((current) =>
-        current.map((s) => (s.id === serviceId ? updated : s))
-      );
-    }
-  };
-
-  const serveNext = async (serviceId) => {
-    if (serviceId !== selectedServiceId) return;
-
-    const res = await fetch(`${API}/api/queues/${serviceId}/serve-next`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: "employee",
-        employeeId: EMPLOYEE_ID,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: data.queue,
-      }));
-    }
-  };
-
-  const removeStudent = async (serviceId, studentId) => {
-    if (serviceId !== selectedServiceId) return;
-
-    const res = await fetch(
-      `${API}/api/queues/${serviceId}/users/${studentId}`,
-      {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: "employee",
-          employeeId: EMPLOYEE_ID,
-        }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: data.queue,
-      }));
-    }
-  };
-
-  const moveStudent = async (serviceId, index, direction) => {
-    if (serviceId !== selectedServiceId) return;
-
-    const queue = queues[serviceId] || [];
-    const toIndex = direction === "up" ? index - 1 : index + 1;
-
-    if (toIndex < 0 || toIndex >= queue.length) return;
-
-    const res = await fetch(`${API}/api/queues/${serviceId}/reorder`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: "employee",
-        employeeId: EMPLOYEE_ID,
-        fromIndex: index,
-        toIndex,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: data,
-      }));
-    }
-  };
-
-  const updateStudentStatus = async (serviceId, studentId, newStatus) => {
-    if (serviceId !== selectedServiceId) return;
-
-    const res = await fetch(
-      `${API}/api/queues/${serviceId}/users/${studentId}/status`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: "employee",
-          employeeId: EMPLOYEE_ID,
-          status: newStatus,
-        }),
-      }
-    );
-
-    const updated = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: current[serviceId].map((student) =>
-          student.id === studentId ? updated : student
-        ),
-      }));
-    }
-  };
-
-  const updateAppointment = async (appointmentId, newStatus) => {
-    const res = await fetch(
-      `${API}/api/appointments/${appointmentId}/status`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      }
-    );
-
-    const updated = await res.json();
-
-    if (res.ok) {
-      setAppointments((current) =>
-        current.map((appointment) =>
-          appointment.id === appointmentId ? updated : appointment
-        )
-      );
-    }
-  };
-
-  // Preserve the employee clock-out feature
-  // and end the authentication session afterward
-  const signOut = async () => {
+  const runAction = (action) => async (...args) => {
+    setLoadError("");
     try {
-      await fetch(`${API}/api/employees/${EMPLOYEE_ID}/clock-out`, {
-        method: "PATCH",
-      });
+      return await action(...args);
     } catch (error) {
-      console.error("Employee clock-out error:", error);
+      setLoadError(error.message || "Could not reach the server. Please try again.");
+      return null;
     }
-
-    await handleLogout();
   };
+
+  const toggleQueue = runAction(async (serviceId) => {
+    const service = services.find((item) => item.id === serviceId);
+    if (!service) return;
+    const updated = await apiRequest(`/api/services/${serviceId}/status`, {
+      method: "PATCH", body: JSON.stringify({ open: !service.open }),
+    });
+    setServices((current) => current.map((item) => item.id === serviceId ? updated : item));
+  });
+
+  const serveNext = runAction(async (serviceId) => {
+    const data = await apiRequest(`/api/queues/${serviceId}/serve-next`, { method: "POST" });
+    setQueues((current) => ({ ...current, [serviceId]: data.queue }));
+    return data;
+  });
+
+  const removeStudent = runAction(async (serviceId, studentId) => {
+    const data = await apiRequest(`/api/queues/${serviceId}/users/${studentId}`, { method: "DELETE" });
+    setQueues((current) => ({ ...current, [serviceId]: data.queue }));
+    return data;
+  });
+
+  const moveStudent = runAction(async (serviceId, index, direction) => {
+    const toIndex = direction === "up" ? index - 1 : index + 1;
+    if (toIndex < 0 || toIndex >= (queues[serviceId] || []).length) return;
+    const data = await apiRequest(`/api/queues/${serviceId}/reorder`, {
+      method: "PATCH", body: JSON.stringify({ fromIndex: index, toIndex }),
+    });
+    setQueues((current) => ({ ...current, [serviceId]: data }));
+  });
+
+  const updateStudentStatus = runAction(async (serviceId, studentId, status) => {
+    const updated = await apiRequest(`/api/queues/${serviceId}/users/${studentId}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
+    });
+    setQueues((current) => ({ ...current,
+      [serviceId]: (current[serviceId] || []).map((student) => student.id === studentId ? updated : student),
+    }));
+  });
 
   const openQueuePage = (serviceId) => {
     setViewingServiceId(serviceId);
     setPage("queue");
   };
+
+  const chooseService = runAction(async (serviceId) => {
+    const employee = await apiRequest("/api/employees/me/service", {
+      method: "PATCH", body: JSON.stringify({ serviceId }),
+    });
+    setProfile(employee);
+    setSelectedServiceId(employee.serviceId);
+    setViewingServiceId(employee.serviceId);
+    setPage("dashboard");
+  });
+
+  const updateAppointment = runAction(async (appointmentId, status) => {
+    const updated = await apiRequest(`/api/appointments/${appointmentId}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
+    });
+    setAppointments((current) => current.map((item) => item.id === appointmentId ? updated : item));
+  });
+
+  const signOut = runAction(async () => {
+    if (loggingOut) return;
+    await apiRequest("/api/employees/me/clock-out", { method: "PATCH" });
+    await handleLogout();
+  });
 
   const renderPage = () => {
     if (!selectedServiceId || page === "services") {
@@ -325,6 +211,7 @@ function EmployeeApp() {
 
     return (
       <EmployeeDashboard
+        employeeName={profile?.firstName}
         services={services}
         queues={queues}
         appointments={appointments}
@@ -365,16 +252,16 @@ function EmployeeApp() {
           </div>
 
           <div className="employee-profile">
-            <span>JS</span>
+            <span>{profile?.firstName?.[0]}{profile?.lastName?.[0]}</span>
 
             <div>
-              <strong>Jordan Smith</strong>
+              <strong>{profile ? `${profile.firstName} ${profile.lastName}` : "Employee"}</strong>
               <small>Employee</small>
             </div>
 
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={signOut}
               disabled={loggingOut}
               style={{
                 marginLeft: "16px",

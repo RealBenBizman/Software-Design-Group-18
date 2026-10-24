@@ -1,10 +1,11 @@
 import { estimateWaitToJoin } from "./waitTime";
 
 // local date as YYYY-MM-DD, matching the backend appointment dates
-const getToday = () => new Date().toLocaleDateString("en-CA");
+const getToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
 
 function EmployeeDashboard({
   services,
+  employeeName,
   queues,
   appointments,
   selectedService,
@@ -40,7 +41,7 @@ function EmployeeDashboard({
       <div className="page-heading dashboard-heading">
         <div>
           <p className="eyebrow">employee dashboard</p>
-          <h2>Good morning, Jordan</h2>
+          <h2>Welcome, {employeeName || "Employee"}</h2>
           <p>Here is what is happening with the financial aid office today.</p>
         </div>
 

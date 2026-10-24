@@ -1,21 +1,26 @@
-import request from "supertest";
-import app from "../src/app.js";
+import { staffSession } from "./helpers/staffSession.js";
+import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
 
-beforeEach(() => {
+let admin;
+let employee;
+beforeEach(async () => {
   resetStore();
+  users.length = 0;
+  admin = await staffSession();
+  employee = await staffSession("employee");
 });
 
 describe("queue management", () => {
   test("views queue", async () => {
-    const response = await request(app).get("/api/queues/1");
+    const response = await admin.get("/api/queues/1");
 
     expect(response.status).toBe(200);
     expect(response.body.count).toBe(3);
   });
 
   test("calculates wait time", async () => {
-    const response = await request(app).get(
+    const response = await admin.get(
       "/api/queues/1/wait-time/3"
     );
 
@@ -24,7 +29,7 @@ describe("queue management", () => {
   });
 
   test("employee serves next user in assigned queue", async () => {
-    const response = await request(app)
+    const response = await employee
       .post("/api/queues/1/serve-next")
       .send({ employeeId: 1, role: "employee" });
 
@@ -33,7 +38,7 @@ describe("queue management", () => {
   });
 
   test("employee cannot manage another queue", async () => {
-    const response = await request(app)
+    const response = await employee
       .post("/api/queues/2/serve-next")
       .send({ employeeId: 1, role: "employee" });
 
@@ -41,7 +46,7 @@ describe("queue management", () => {
   });
 
   test("admin can manage any queue", async () => {
-    const response = await request(app)
+    const response = await admin
       .post("/api/queues/2/serve-next")
       .send({ role: "admin" });
 
@@ -49,7 +54,7 @@ describe("queue management", () => {
   });
 
   test("removes user", async () => {
-    const response = await request(app)
+    const response = await admin
       .delete("/api/queues/1/users/102")
       .send({ employeeId: 1, role: "employee" });
 
@@ -58,7 +63,7 @@ describe("queue management", () => {
   });
 
   test("updates user status", async () => {
-    const response = await request(app)
+    const response = await admin
       .patch("/api/queues/1/users/101/status")
       .send({
         employeeId: 1,
@@ -71,7 +76,7 @@ describe("queue management", () => {
   });
 
   test("reorders queue", async () => {
-    const response = await request(app)
+    const response = await admin
       .patch("/api/queues/1/reorder")
       .send({
         employeeId: 1,

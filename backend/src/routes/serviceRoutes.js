@@ -2,13 +2,17 @@ import express from "express";
 import { store } from "../data/store.js";
 import { validateService } from "../utils/validation.js";
 
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import { canManageService } from "../middleware/staffAccess.js";
+
 const router = express.Router();
+router.use(requireAuth);
 
 router.get("/", (req, res) => {
   res.json(store.services);
 });
 
-router.post("/", (req, res) => {
+router.post("/", requireRole("admin"), (req, res) => {
   const errors = validateService(req.body);
 
   if (errors.length > 0) {
@@ -35,7 +39,7 @@ router.post("/", (req, res) => {
   res.status(201).json(service);
 });
 
-router.put("/:id", (req, res) => {
+router.put("/:id", requireRole("admin"), (req, res) => {
   const serviceId = Number(req.params.id);
   const service = store.services.find((item) => item.id === serviceId);
 
@@ -57,12 +61,16 @@ router.put("/:id", (req, res) => {
   res.json(service);
 });
 
-router.patch("/:id/status", (req, res) => {
+router.patch("/:id/status", requireRole("admin", "employee"), (req, res) => {
   const serviceId = Number(req.params.id);
   const service = store.services.find((item) => item.id === serviceId);
 
   if (!service) {
     return res.status(404).json({ error: "service not found" });
+  }
+
+  if (!canManageService(req.user, serviceId)) {
+    return res.status(403).json({ error: "you cannot manage this queue" });
   }
 
   if (typeof req.body.open !== "boolean") {

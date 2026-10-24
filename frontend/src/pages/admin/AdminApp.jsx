@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../../utils/api";
 
 import AdminSidebar from "./AdminSidebar";
 import AdminDashboard from "./AdminDashboard";
@@ -10,11 +11,8 @@ import EmployeeManagement from "./EmployeeManagement";
 import Reports from "./Reports";
 import "./admin.css";
 
-const API = "http://localhost:3001";
 const SERVER_ERROR = "Could not reach the server. Please try again.";
 
-const getErrorMessage = (data) =>
-  data.errors?.join(" ") || data.error || "Something went wrong.";
 
 function AdminApp() {
   const navigate = useNavigate();
@@ -22,6 +20,7 @@ function AdminApp() {
   const [page, setPage] = useState("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [services, setServices] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [queues, setQueues] = useState({});
   const [employees, setEmployees] = useState([]);
   const [reports, setReports] = useState([]);
@@ -46,14 +45,7 @@ function AdminApp() {
     setLogoutError("");
 
     try {
-      const response = await fetch(`${API}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Logout failed");
-      }
+      await apiRequest("/api/auth/logout", { method: "POST" });
 
       navigate("/staff-login", { replace: true });
     } catch (error) {
@@ -66,260 +58,133 @@ function AdminApp() {
 
   // Load dashboard data from the backend
   useEffect(() => {
-    async function getJson(path) {
-      const res = await fetch(`${API}${path}`);
-
-      if (!res.ok) {
-        throw new Error(`${path} returned ${res.status}`);
-      }
-
-      return res.json();
-    }
+    const controller = new AbortController();
+    let loading = false;
+    const getJson = (path) => apiRequest(path, { signal: controller.signal });
 
     async function loadAll() {
+      if (loading) return;
+      loading = true;
       try {
         const servicesData = await getJson("/api/services");
+        const queueEntries = await Promise.all(servicesData.map(async (service) => {
+          const data = await getJson(`/api/queues/${service.id}`);
+          return [service.id, data.queue];
+        }));
+        const [employeesData, reportsData, dashData, me] = await Promise.all([
+          getJson("/api/employees"), getJson("/api/reports"),
+          getJson("/api/dashboard/admin"), getJson("/api/auth/me"),
+        ]);
+        if (controller.signal.aborted) return;
+        setEmployees(employeesData);
+        setReports(reportsData);
+        setProfile(me.user);
+        setActivity(dashData.activity);
         setServices(servicesData);
-
-        const queueEntries = await Promise.all(
-          servicesData.map(async (service) => {
-            const data = await getJson(`/api/queues/${service.id}`);
-            return [service.id, data.queue];
-          })
-        );
-
         setQueues(Object.fromEntries(queueEntries));
-
-        setEmployees(await getJson("/api/employees"));
-        setReports(await getJson("/api/reports"));
-
-        const dashData = await getJson("/api/dashboard/admin");
-        setActivity({ ...dashData.activity, averageWait: 0 });
       } catch (error) {
-        console.error("Failed to load admin data:", error);
-        setLoadError(SERVER_ERROR);
+        if (error.name !== "AbortError") setLoadError(error.message);
+      } finally {
+        loading = false;
       }
     }
 
     loadAll();
+    const timer = setInterval(loadAll, 5000);
+    return () => {
+      clearInterval(timer);
+      controller.abort();
+    };
   }, []);
 
-  // Open or close a service queue
-  const toggleQueue = async (serviceId) => {
-    const service = services.find((s) => s.id === serviceId);
-
-    const res = await fetch(`${API}/api/services/${serviceId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ open: !service.open }),
-    });
-
-    const updated = await res.json();
-
-    if (res.ok) {
-      setServices((current) =>
-        current.map((s) => (s.id === serviceId ? updated : s))
-      );
+  const runAction = (action) => async (...args) => {
+    setLoadError("");
+    try {
+      await action(...args);
+    } catch (error) {
+      setLoadError(error.message || "Could not reach the server. Please try again.");
     }
   };
+
+  const toggleQueue = runAction(async (serviceId) => {
+    const service = services.find((item) => item.id === serviceId);
+    if (!service) return;
+    const updated = await apiRequest(`/api/services/${serviceId}/status`, {
+      method: "PATCH", body: JSON.stringify({ open: !service.open }),
+    });
+    setServices((current) => current.map((item) => item.id === serviceId ? updated : item));
+  });
+
+  const serveNext = runAction(async (serviceId) => {
+    const data = await apiRequest(`/api/queues/${serviceId}/serve-next`, { method: "POST" });
+    setQueues((current) => ({ ...current, [serviceId]: data.queue }));
+  });
+
+  const removeStudent = runAction(async (serviceId, studentId) => {
+    const data = await apiRequest(`/api/queues/${serviceId}/users/${studentId}`, { method: "DELETE" });
+    setQueues((current) => ({ ...current, [serviceId]: data.queue }));
+  });
+
+  const moveStudent = runAction(async (serviceId, index, direction) => {
+    const toIndex = direction === "up" ? index - 1 : index + 1;
+    if (toIndex < 0 || toIndex >= (queues[serviceId] || []).length) return;
+    const data = await apiRequest(`/api/queues/${serviceId}/reorder`, {
+      method: "PATCH", body: JSON.stringify({ fromIndex: index, toIndex }),
+    });
+    setQueues((current) => ({ ...current, [serviceId]: data }));
+  });
+
+  const updateStudentStatus = runAction(async (serviceId, studentId, status) => {
+    const updated = await apiRequest(`/api/queues/${serviceId}/users/${studentId}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
+    });
+    setQueues((current) => ({ ...current,
+      [serviceId]: (current[serviceId] || []).map((student) => student.id === studentId ? updated : student),
+    }));
+  });
 
   const openQueuePage = (serviceId) => {
     setViewingServiceId(serviceId);
     setPage("queues");
   };
 
-  // Serve the next student in a queue
-  const serveNext = async (serviceId) => {
-    const res = await fetch(`${API}/api/queues/${serviceId}/serve-next`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "admin" }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: data.queue,
-      }));
-    }
-  };
-
-  // Remove a student from a queue
-  const removeStudent = async (serviceId, studentId) => {
-    const res = await fetch(
-      `${API}/api/queues/${serviceId}/users/${studentId}`,
-      {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "admin" }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: data.queue,
-      }));
-    }
-  };
-
-  // Move a student up or down in a queue
-  const moveStudent = async (serviceId, index, direction) => {
-    const queue = queues[serviceId] || [];
-    const toIndex = direction === "up" ? index - 1 : index + 1;
-
-    if (toIndex < 0 || toIndex >= queue.length) {
-      return;
-    }
-
-    const res = await fetch(`${API}/api/queues/${serviceId}/reorder`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: "admin",
-        fromIndex: index,
-        toIndex,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: data,
-      }));
-    }
-  };
-
-  // Update a student's queue status
-  const updateStudentStatus = async (serviceId, studentId, status) => {
-    const res = await fetch(
-      `${API}/api/queues/${serviceId}/users/${studentId}/status`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "admin", status }),
-      }
-    );
-
-    const updated = await res.json();
-
-    if (res.ok) {
-      setQueues((current) => ({
-        ...current,
-        [serviceId]: current[serviceId].map((student) =>
-          student.id === studentId ? updated : student
-        ),
-      }));
-    }
-  };
-
-  // Add a service
   const addService = async (serviceData) => {
     try {
-      const res = await fetch(`${API}/api/services`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(serviceData),
-      });
-
-      const newService = await res.json();
-
-      if (!res.ok) {
-        return {
-          ok: false,
-          error: getErrorMessage(newService),
-        };
-      }
-
-      setServices((current) => [...current, newService]);
-
-      setQueues((current) => ({
-        ...current,
-        [newService.id]: [],
-      }));
-
+      const service = await apiRequest("/api/services", { method: "POST", body: JSON.stringify(serviceData) });
+      setServices((current) => [...current, service]);
+      setQueues((current) => ({ ...current, [service.id]: [] }));
       return { ok: true };
-    } catch {
-      return { ok: false, error: SERVER_ERROR };
+    } catch (error) {
+      return { ok: false, error: error.message || SERVER_ERROR };
     }
   };
 
-  // Edit a service
   const editService = async (serviceId, serviceData) => {
     try {
-      const res = await fetch(`${API}/api/services/${serviceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(serviceData),
-      });
-
-      const updated = await res.json();
-
-      if (!res.ok) {
-        return {
-          ok: false,
-          error: getErrorMessage(updated),
-        };
-      }
-
-      setServices((current) =>
-        current.map((s) => (s.id === serviceId ? updated : s))
-      );
-
+      const updated = await apiRequest(`/api/services/${serviceId}`, { method: "PUT", body: JSON.stringify(serviceData) });
+      setServices((current) => current.map((item) => item.id === serviceId ? updated : item));
       return { ok: true };
-    } catch {
-      return { ok: false, error: SERVER_ERROR };
+    } catch (error) {
+      return { ok: false, error: error.message || SERVER_ERROR };
     }
   };
 
-  // Add an employee
   const addEmployee = async (employeeData) => {
     try {
-      const res = await fetch(`${API}/api/employees`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(employeeData),
-      });
-
-      const newEmployee = await res.json();
-
-      if (!res.ok) {
-        return {
-          ok: false,
-          error: getErrorMessage(newEmployee),
-        };
-      }
-
-      setEmployees((current) => [...current, newEmployee]);
-
+      const employee = await apiRequest("/api/employees", { method: "POST", body: JSON.stringify(employeeData) });
+      setEmployees((current) => [...current, employee]);
       return { ok: true };
-    } catch {
-      return { ok: false, error: SERVER_ERROR };
+    } catch (error) {
+      return { ok: false, error: error.message || SERVER_ERROR };
     }
   };
 
-  // Update report status
-  const updateReportStatus = async (reportId, status) => {
-    const res = await fetch(`${API}/api/reports/${reportId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+  const updateReportStatus = runAction(async (reportId, status) => {
+    const updated = await apiRequest(`/api/reports/${reportId}/status`, {
+      method: "PATCH", body: JSON.stringify({ status }),
     });
-
-    const updated = await res.json();
-
-    if (res.ok) {
-      setReports((current) =>
-        current.map((r) => (r.id === reportId ? updated : r))
-      );
-    }
-  };
+    setReports((current) => current.map((report) => report.id === reportId ? updated : report));
+  });
 
   // Render the selected admin page
   const renderPage = () => {
@@ -391,6 +256,8 @@ function AdminApp() {
         setPage={setPage}
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
+        onSignOut={handleLogout}
+        loggingOut={loggingOut}
       />
 
       <main className="admin-main">
@@ -409,10 +276,10 @@ function AdminApp() {
           </div>
 
           <div className="admin-profile">
-            <span>AD</span>
+            <span>{profile?.firstName?.[0]}{profile?.lastName?.[0]}</span>
 
             <div>
-              <strong>Admin User</strong>
+              <strong>{profile ? `${profile.firstName} ${profile.lastName}` : "Administrator"}</strong>
               <small>Administrator</small>
             </div>
 

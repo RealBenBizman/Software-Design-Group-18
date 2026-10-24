@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "../../styles/Student.css";
+import { apiRequest } from "../../utils/api";
 
 function Settings() {
   const [firstName, setFirstName] = useState("");
@@ -9,19 +10,37 @@ function Settings() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  function handleSubmit(event) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    apiRequest("/api/auth/me", { signal: controller.signal }).then(({ user }) => {
+      setFirstName(user.firstName);
+      setLastName(user.lastName);
+      setEmail(user.email);
+      setPhone(user.phone || "");
+    }).catch((err) => {
+      if (err.name !== "AbortError") setError(err.message);
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, []);
+
+  async function handleSubmit(event) {
     event.preventDefault();
-
-    const phoneDigits = phone.replace(/\D/g, "");
-
-    if (phoneDigits.length !== 10) {
-      setError("Please enter a valid 10-digit phone number.");
-      setMessage("");
-      return;
-    }
-
     setError("");
-    setMessage("Profile updated successfully.");
+    setMessage("");
+    setSaving(true);
+    try {
+      await apiRequest("/api/account/profile", {
+        method: "PATCH", body: JSON.stringify({ firstName, lastName, email, phone }),
+      });
+      setMessage("Profile updated successfully.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -42,6 +61,7 @@ function Settings() {
               <div>
                 <label htmlFor="first-name">First Name</label>
                 <input
+                  maxLength={50}
                   id="first-name"
                   type="text"
                   value={firstName}
@@ -53,6 +73,7 @@ function Settings() {
               <div>
                 <label htmlFor="last-name">Last Name</label>
                 <input
+                  maxLength={50}
                   id="last-name"
                   type="text"
                   value={lastName}
@@ -64,6 +85,7 @@ function Settings() {
 
             <label htmlFor="settings-email">Email</label>
             <input
+              maxLength={254}
               id="settings-email"
               type="email"
               value={email}
@@ -73,17 +95,17 @@ function Settings() {
 
             <label htmlFor="settings-phone">Phone Number</label>
             <input
+              maxLength={20}
               id="settings-phone"
               type="tel"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              required
             />
 
             {error && <p className="error-message">{error}</p>}
             {message && <p className="success-message">{message}</p>}
 
-            <button type="submit">Save Changes</button>
+            <button type="submit" disabled={loading || saving}>{loading ? "Loading..." : saving ? "Saving..." : "Save Changes"}</button>
           </form>
         </section>
       </div>

@@ -2,9 +2,13 @@ import express from "express";
 import { store } from "../data/store.js";
 import { estimateWait } from "../utils/waitTime.js";
 
-const router = express.Router();
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import { requireEmployeeAccess } from "../middleware/staffAccess.js";
 
-router.get("/admin", (req, res) => {
+const router = express.Router();
+router.use(requireAuth, requireRole("admin", "employee"));
+
+router.get("/admin", requireRole("admin"), (req, res) => {
   const studentsWaiting = Object.values(store.queues).reduce(
     (total, queue) => total + queue.length,
     0
@@ -23,20 +27,17 @@ router.get("/admin", (req, res) => {
     openQueues,
     studentsWaiting,
     employeesWorking,
-    activity: store.activity
+    activity: {
+      ...store.activity,
+      averageWait: studentsWaiting ? Math.round(store.services.reduce((total, service) =>
+        total + (store.queues[service.id] || []).reduce((sum, entry, index) =>
+          sum + estimateWait(index + 1, service.expectedDuration), 0), 0) / studentsWaiting) : 0
+    }
   });
 });
 
-router.get("/employee/:employeeId", (req, res) => {
-  const employeeId = Number(req.params.employeeId);
-
-  const employee = store.employees.find(
-    (item) => item.id === employeeId
-  );
-
-  if (!employee) {
-    return res.status(404).json({ error: "employee not found" });
-  }
+router.get("/employee/:employeeId", requireEmployeeAccess, (req, res) => {
+  const employee = req.employee;
 
   if (!employee.serviceId) {
     return res.json({

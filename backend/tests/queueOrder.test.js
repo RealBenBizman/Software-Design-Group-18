@@ -1,10 +1,13 @@
-import request from "supertest";
-import app from "../src/app.js";
+import { staffSession } from "./helpers/staffSession.js";
+import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
 import { sortByPriority, insertByPriority } from "../src/utils/queueOrder.js";
 
-beforeEach(() => {
+let admin;
+beforeEach(async () => {
   resetStore();
+  users.length = 0;
+  admin = await staffSession();
 });
 
 const ids = (queue) => queue.map((entry) => entry.id);
@@ -65,14 +68,14 @@ describe("queue ordering by priority and arrival", () => {
   });
 
   test("queue starts in priority order", async () => {
-    const response = await request(app).get("/api/queues/1");
+    const response = await admin.get("/api/queues/1");
 
     // 103 is high priority, so it is ahead of the earlier normal arrivals
     expect(ids(response.body.queue)).toEqual([103, 101, 102]);
   });
 
   test("serve next serves the high priority user first", async () => {
-    const response = await request(app)
+    const response = await admin
       .post("/api/queues/1/serve-next")
       .send({ role: "admin" });
 

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import users from "../data/users.js";
+import { reservedDemoUserIds } from "../data/store.js";
 
 async function register(req, res) {
     try {
@@ -11,7 +12,7 @@ async function register(req, res) {
             email,
             phone,
             password
-        } = req.body;
+        } = req.body ?? {};
 
         // 2. Validate required fields
         if (
@@ -89,9 +90,15 @@ async function register(req, res) {
         // 8. Hash the password
         const passwordHash = await bcrypt.hash(password, 10);
 
+        if (users.some((user) => user.email === normalizedEmail)) {
+            return res.status(409).json({ error: "An account with this email already exists" });
+        }
+
         // 9. Create the account
+        let userId = users.reduce((highest, user) => Math.max(highest, user.id), 0) + 1;
+        while (reservedDemoUserIds.has(userId)) userId += 1;
         const newUser = {
-            id: users.length + 1,
+            id: userId,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: normalizedEmail,
@@ -130,7 +137,7 @@ async function register(req, res) {
 async function login(req, res) {
     try {
         // 1. Extract login credentials
-        const { email, password } = req.body;
+        const { email, password } = req.body ?? {};
 
         // 2. Validate credentials
         if (

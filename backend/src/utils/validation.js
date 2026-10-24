@@ -61,7 +61,7 @@ export function validateEmployee(body) {
 
   if (
     typeof body.email !== "string" ||
-    !body.email.includes("@") ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) ||
     body.email.length > LIMITS.email
   ) {
     errors.push("a valid email is required");

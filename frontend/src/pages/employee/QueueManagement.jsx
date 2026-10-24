@@ -33,15 +33,15 @@ function QueueManagement({
   const canManage = service.id === selectedServiceId;
   const estimatedWait = estimateWaitToJoin(queue, service.expectedDuration);
 
-  const serveNext = () => {
+  const serveNext = async () => {
     if (!queue.length) {
       setMessage("There is nobody waiting in this queue.");
       return;
     }
 
-    const nextStudent = queue[0];
-    onServeNext(service.id);
-    setMessage(`${nextStudent.name} is now being served.`);
+    setMessage("");
+    const result = await onServeNext(service.id);
+    if (result) setMessage(`${result.servedUser.name} is now being served.`);
   };
 
   return (

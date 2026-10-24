@@ -41,8 +41,8 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
       return;
     }
 
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (form.password.length < 8 || form.password.length > 128) {
+      setError("Password must be between 8 and 128 characters.");
       return;
     }
 
@@ -57,6 +57,7 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
       lastName: form.lastName.trim(),
       email: form.email.trim(),
       phone: form.phone.trim(),
+      password: form.password,
       role: "Employee",
       serviceId: null,
       status: "offline",
@@ -155,8 +156,9 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
             Password *
             <input
               type="password"
+              minLength={8}
+              maxLength={128}
               name="password"
-              minLength="6"
               value={form.password}
               onChange={handleChange}
               required
@@ -167,8 +169,9 @@ function EmployeeManagement({ employees, services, onAddEmployee }) {
             Confirm Password *
             <input
               type="password"
+              minLength={8}
+              maxLength={128}
               name="confirmPassword"
-              minLength="6"
               value={form.confirmPassword}
               onChange={handleChange}
               required
