@@ -1,16 +1,16 @@
-import users from "../data/users.js";
+
+import { findUserById } from "../data/userRepository.js";
 
 // Check whether the request belongs to a logged-in user.
 function requireAuth(req, res, next) {
-    if (!req.session || !req.session.userId) {
+    if (!req.session?.userId) {
         return res.status(401).json({
             error: "Authentication required"
         });
     }
 
-    const user = users.find(
-        (user) => user.id === req.session.userId
-    );
+    // Retrieve the authenticated user from SQLite.
+    const user = findUserById(req.session.userId);
 
     if (!user) {
         return res.status(401).json({
@@ -24,6 +24,7 @@ function requireAuth(req, res, next) {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        phone: user.phone,
         userType: user.userType,
         role: user.role,
         employeeId: user.employeeId
@@ -31,7 +32,6 @@ function requireAuth(req, res, next) {
 
     next();
 }
-
 
 // Restrict an endpoint to specific user roles.
 function requireRole(...allowedRoles) {

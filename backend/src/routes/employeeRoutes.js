@@ -1,22 +1,35 @@
+
 import express from "express";
 import bcrypt from "bcryptjs";
-import users from "../data/users.js";
-import { store, reservedDemoUserIds } from "../data/store.js";
-import { validateEmployee } from "../utils/validation.js";
 
+import { store } from "../data/store.js";
+import {
+  createUser,
+  findUserByEmail
+} from "../data/userRepository.js";
+
+import { validateEmployee } from "../utils/validation.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 import { requireEmployeeAccess } from "../middleware/staffAccess.js";
 
 const router = express.Router();
+
 router.use(requireAuth, requireRole("admin", "employee"));
 
+// Get all employees (admin only)
 router.get("/", requireRole("admin"), (req, res) => {
   res.json(store.employees);
 });
 
+// Create a new employee (admin only)
 router.post("/", requireRole("admin"), async (req, res) => {
   const errors = validateEmployee(req.body);
-  if (typeof req.body.password !== "string" || req.body.password.length < 8 || req.body.password.length > 128) {
+
+  if (
+    typeof req.body.password !== "string" ||
+    req.body.password.length < 8 ||
+    req.body.password.length > 128
+  ) {
     errors.push("password must be between 8 and 128 characters");
   }
 
@@ -25,14 +38,26 @@ router.post("/", requireRole("admin"), async (req, res) => {
   }
 
   const email = req.body.email.trim().toLowerCase();
-  const duplicateEmail = () => store.employees.some((employee) => employee.email.toLowerCase() === email) ||
-    users.some((user) => user.email === email);
+
+  // Check both existing employee records and SQLite accounts.
+  const duplicateEmail = () =>
+    store.employees.some(
+      (employee) => employee.email.toLowerCase() === email
+    ) || findUserByEmail(email) !== null;
+
   if (duplicateEmail()) {
-    return res.status(409).json({ error: "employee email already exists" });
+    return res.status(409).json({
+      error: "employee email already exists"
+    });
   }
+
   const passwordHash = await bcrypt.hash(req.body.password, 10);
+
+  // Check again after the asynchronous password hashing.
   if (duplicateEmail()) {
-    return res.status(409).json({ error: "employee email already exists" });
+    return res.status(409).json({
+      error: "employee email already exists"
+    });
   }
 
   const nextId =
@@ -51,25 +76,54 @@ router.post("/", requireRole("admin"), async (req, res) => {
     status: "offline"
   };
 
-  let userId = users.reduce((highest, user) => Math.max(highest, user.id), 0) + 1;
-  while (reservedDemoUserIds.has(userId)) userId += 1;
-  users.push({ id: userId, firstName: employee.firstName, lastName: employee.lastName,
-    email, phone: employee.phone, userType: "staff", role: "employee",
-    employeeId: employee.id, passwordHash });
+  try {
+    // Store employee login credentials and profile in SQLite.
+    createUser({
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      email: employee.email,
+      phone: employee.phone,
+      passwordHash,
+      userType: "staff",
+      role: "employee",
+      employeeId: employee.id
+    });
+  } catch (error) {
+    // SQLite enforces unique emails and employee associations.
+    if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return res.status(409).json({
+        error: "employee email already exists"
+      });
+    }
+
+    throw error;
+  }
+
+  // Preserve the existing employee management functionality.
   store.employees.push(employee);
-  res.status(201).json(employee);
+
+  return res.status(201).json(employee);
 });
 
+// Assign an employee to a service
 router.patch("/:id/service", requireEmployeeAccess, (req, res) => {
   const employee = req.employee;
   const serviceId = req.body.serviceId;
+
   if (!Number.isInteger(serviceId) || serviceId < 1) {
-    return res.status(400).json({ error: "serviceId must be a positive integer" });
+    return res.status(400).json({
+      error: "serviceId must be a positive integer"
+    });
   }
-  const service = store.services.find((item) => item.id === serviceId);
+
+  const service = store.services.find(
+    (item) => item.id === serviceId
+  );
 
   if (!service) {
-    return res.status(404).json({ error: "service not found" });
+    return res.status(404).json({
+      error: "service not found"
+    });
   }
 
   employee.serviceId = serviceId;
@@ -78,6 +132,7 @@ router.patch("/:id/service", requireEmployeeAccess, (req, res) => {
   res.json(employee);
 });
 
+// Clock an employee out
 router.patch("/:id/clock-out", requireEmployeeAccess, (req, res) => {
   const employee = req.employee;
 

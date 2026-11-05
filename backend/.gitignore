@@ -9,3 +9,10 @@ coverage/
 
 # Logs
 npm-debug.log*
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

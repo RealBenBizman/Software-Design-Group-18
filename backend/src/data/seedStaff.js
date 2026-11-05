@@ -1,7 +1,10 @@
 
 import bcrypt from "bcryptjs";
-import users from "./users.js";
-import { store, reservedDemoUserIds } from "./store.js";
+import { store } from "./store.js";
+import {
+    createUser,
+    findUserByEmail
+} from "./userRepository.js";
 
 async function seedStaff() {
     // Never create demo staff accounts in production.
@@ -40,12 +43,24 @@ async function seedStaff() {
 
         const email = account.email.trim().toLowerCase();
 
-        const existingUser = users.find(
-            (user) => user.email === email
-        );
+        // Check SQLite instead of the old users array.
+        const existingUser = findUserByEmail(email);
 
         if (existingUser) {
             continue;
+        }
+
+        const employee = account.role === "employee"
+            ? store.employees.find(
+                (item) =>
+                    item.id === Number(process.env.DEV_EMPLOYEE_ID || 1)
+            )
+            : null;
+
+        if (account.role === "employee" && !employee) {
+            throw new Error(
+                "DEV_EMPLOYEE_ID must identify an existing employee"
+            );
         }
 
         const passwordHash = await bcrypt.hash(
@@ -53,17 +68,8 @@ async function seedStaff() {
             10
         );
 
-        const employee = account.role === "employee"
-            ? store.employees.find((item) => item.id === Number(process.env.DEV_EMPLOYEE_ID || 1))
-            : null;
-        if (account.role === "employee" && !employee) {
-            throw new Error("DEV_EMPLOYEE_ID must identify an existing employee");
-        }
-        let id = users.reduce((highest, user) => Math.max(highest, user.id), 0) + 1;
-        while (reservedDemoUserIds.has(id)) id += 1;
-        if (employee) employee.email = email;
-        users.push({
-            id,
+        // Save staff credentials and profile in SQLite.
+        createUser({
             firstName: employee?.firstName || account.firstName,
             lastName: employee?.lastName || account.lastName,
             email,
@@ -71,8 +77,13 @@ async function seedStaff() {
             userType: "staff",
             passwordHash,
             role: account.role,
-            employeeId: employee?.id
+            employeeId: employee?.id ?? null
         });
+
+        // Keep the demo employee record synchronized.
+        if (employee) {
+            employee.email = email;
+        }
     }
 }
 
