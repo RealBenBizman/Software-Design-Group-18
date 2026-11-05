@@ -3,6 +3,7 @@ import app from "../src/app.js";
 import seedStaff from "../src/data/seedStaff.js";
 import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
+import { findUserByEmail } from "../src/data/userRepository.js";
 
 const keys = ["NODE_ENV", "DEV_EMPLOYEE_EMAIL", "DEV_EMPLOYEE_PASSWORD", "DEV_EMPLOYEE_ID", "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD"];
 let saved;
@@ -28,7 +29,9 @@ test("configured employee login reaches the correct staff record and assignment"
   process.env.DEV_ADMIN_PASSWORD = "AdminPassword123!";
   await seedStaff();
   await seedStaff();
-  expect(users).toHaveLength(2);
+  expect(findUserByEmail("employee@example.com")).not.toBeNull();
+  expect(findUserByEmail("admin@example.com")).not.toBeNull();
+
   const employee = request.agent(app);
   await employee.post("/api/auth/login").send({ email: "employee@example.com", password: "EmployeePassword123!" }).expect(200);
   const dashboard = await employee.get("/api/dashboard/employee/me").expect(200);
@@ -41,7 +44,7 @@ test("default development employee maps to the first seeded employee", async () 
   process.env.DEV_EMPLOYEE_EMAIL = "employee@example.com";
   process.env.DEV_EMPLOYEE_PASSWORD = "EmployeePassword123!";
   await seedStaff();
-  expect(users[0].employeeId).toBe(1);
+  expect(findUserByEmail("employee@example.com")?.employeeId).toBe(1);
 });
 
 test("missing credentials or production mode do not create demo accounts", async () => {

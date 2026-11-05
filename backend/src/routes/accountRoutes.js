@@ -1,5 +1,8 @@
 import express from "express";
-import users from "../data/users.js";
+import {
+  findUserByEmail,
+  updateUserProfile
+} from "../data/userRepository.js";
 import { store } from "../data/store.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 
@@ -10,29 +13,114 @@ const times = ["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM
 const officeDate = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
 const validText = (value, limit) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= limit;
 
+
 router.patch("/profile", (req, res) => {
-  const { firstName, lastName, email, phone = "" } = req.body;
-  if (!validText(firstName, 50) || !validText(lastName, 50) || !validText(email, 254) ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || typeof phone !== "string" ||
-      (phone !== "" && !/^[0-9()+.\s-]{7,20}$/.test(phone.trim()))) {
-    return res.status(400).json({ error: "Enter valid names, email, and phone number within the field limits." });
+  const {
+    firstName,
+    lastName,
+    email,
+    phone = ""
+  } = req.body;
+
+  // Validate profile information.
+  if (
+    !validText(firstName, 50) ||
+    !validText(lastName, 50) ||
+    !validText(email, 254) ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+    typeof phone !== "string" ||
+    (phone !== "" && !/^[0-9()+.\s-]{7,20}$/.test(phone.trim()))
+  ) {
+    return res.status(400).json({
+      error: "Enter valid names, email, and phone number within the field limits."
+    });
   }
+
   const normalizedEmail = email.trim().toLowerCase();
-  if (users.some((user) => user.id !== req.user.id && user.email === normalizedEmail) ||
-      (req.user.role === "employee" && store.employees.some((employee) =>
-        employee.id !== req.user.employeeId && employee.email.toLowerCase() === normalizedEmail))) {
-    return res.status(409).json({ error: "An account with this email already exists." });
+
+  // Check whether another SQLite account uses this email.
+  const existingUser = findUserByEmail(normalizedEmail);
+
+  if (existingUser && existingUser.id !== req.user.id) {
+    return res.status(409).json({
+      error: "An account with this email already exists."
+    });
   }
-  const account = users.find((user) => user.id === req.user.id);
-  const profile = { firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, phone: phone.trim() };
-  Object.assign(account, profile);
-  const employee = store.employees.find((item) => item.id === account.employeeId);
-  if (employee) Object.assign(employee, profile);
-  for (const entry of [...Object.values(store.queues).flat(), ...store.appointments]) {
-    if (entry.userId === account.id) entry.name = `${profile.firstName} ${profile.lastName}`;
+
+  // Preserve the existing employee email validation.
+  if (
+    req.user.role === "employee" &&
+    store.employees.some(
+      (employee) =>
+        employee.id !== req.user.employeeId &&
+        employee.email.toLowerCase() === normalizedEmail
+    )
+  ) {
+    return res.status(409).json({
+      error: "An account with this email already exists."
+    });
   }
-  res.json({ user: { id: account.id, ...profile, role: account.role, userType: account.userType } });
+
+  const profile = {
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    email: normalizedEmail,
+    phone: phone.trim()
+  };
+
+  let account;
+
+  try {
+    // Update Users and Profiles together in SQLite.
+    account = updateUserProfile(req.user.id, profile);
+  } catch (error) {
+    if (
+      error.code === "SQLITE_CONSTRAINT_UNIQUE" ||
+      error.code === "SQLITE_CONSTRAINT"
+    ) {
+      return res.status(409).json({
+        error: "An account with this email already exists."
+      });
+    }
+
+    throw error;
+  }
+
+  if (!account) {
+    return res.status(404).json({
+      error: "Account not found."
+    });
+  }
+
+  // Keep the existing employee record synchronized.
+  const employee = store.employees.find(
+    (item) => item.id === account.employeeId
+  );
+
+  if (employee) {
+    Object.assign(employee, profile);
+  }
+
+  // Preserve name updates in queues and appointments.
+  for (const entry of [
+    ...Object.values(store.queues).flat(),
+    ...store.appointments
+  ]) {
+    if (entry.userId === account.id) {
+      entry.name = `${profile.firstName} ${profile.lastName}`;
+    }
+  }
+
+  return res.json({
+    user: {
+      id: account.id,
+      ...profile,
+      role: account.role,
+      userType: account.userType
+    }
+  });
 });
+
 
 router.get("/appointment-options", requireRole("student"), (req, res) => {
   const tomorrow = new Date(`${officeDate()}T12:00:00Z`);

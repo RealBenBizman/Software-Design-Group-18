@@ -1,6 +1,7 @@
 import request from "supertest";
 import app from "../src/app.js";
 import users from "../src/data/users.js";
+import db from "../src/data/database.js";
 import { store, resetStore } from "../src/data/store.js";
 import { recordQueueHistory, getUserHistory } from "../src/services/historyService.js";
 import { recordQueueJoined, recordQueueFinished } from "../src/services/queueActivity.js";
@@ -133,8 +134,16 @@ describe("history API with the real login session", () => {
     await agent.get("/api/history?outcome=left&outcome=served").expect(400);
   });
 
-  test("staff roles cannot use the student history API", async () => {
-    users[0].role = "admin";
+  
+test("staff roles cannot use the student history API", async () => {
+    // Change the authenticated user's role in SQLite.
+    db.prepare(`
+        UPDATE Users
+        SET role = 'admin'
+        WHERE email = ?
+    `).run("history@example.com");
+
+    // Admins should not access student-only history.
     await agent.get("/api/history").expect(403);
   });
 

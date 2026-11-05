@@ -3,6 +3,7 @@ import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
 import request from "supertest";
 import app from "../src/app.js";
+import db from "../src/data/database.js";
 
 let admin;
 beforeEach(async () => {
@@ -54,7 +55,11 @@ describe("employee management", () => {
       await admin.post("/api/employees").send({ firstName: "New", lastName: "Employee", email: "invalid@example.com",
         phone: "7135550100", password }).expect(400);
     }
-    expect(users).toHaveLength(1);
+    const { count } = db.prepare(
+      "SELECT COUNT(*) AS count FROM Users"
+    ).get();
+    
+    expect(count).toBe(1);
   });
 
   test("rejects bad employee data", async () => {

@@ -1,10 +1,54 @@
+
 import bcrypt from "bcryptjs";
-import users from "../data/users.js";
-import { reservedDemoUserIds } from "../data/store.js";
+import {
+    createUser,
+    findUserByEmail,
+    findUserById
+} from "../data/userRepository.js";
+
+// Return user information without exposing the password hash.
+function publicUser(user) {
+    return {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        userType: user.userType,
+        role: user.role
+    };
+}
+
+// Create and save an authenticated session.
+function startSession(req, user, res, status, message) {
+    req.session.regenerate((error) => {
+        if (error) {
+            console.error("Session regeneration error:", error);
+            return res.status(500).json({
+                error: "Unable to create login session"
+            });
+        }
+
+        req.session.userId = user.id;
+
+        req.session.save((error) => {
+            if (error) {
+                console.error("Session save error:", error);
+                return res.status(500).json({
+                    error: "Unable to save login session"
+                });
+            }
+
+            return res.status(status).json({
+                message,
+                user: publicUser(user)
+            });
+        });
+    });
+}
 
 async function register(req, res) {
     try {
-        // 1. Extract registration information
         const {
             userType,
             firstName,
@@ -14,7 +58,7 @@ async function register(req, res) {
             password
         } = req.body ?? {};
 
-        // 2. Validate required fields
+        // Validate required fields.
         if (
             typeof firstName !== "string" ||
             typeof lastName !== "string" ||
@@ -30,8 +74,6 @@ async function register(req, res) {
             });
         }
 
-        // 3. Validate account type
-        // Missing userType defaults to student for compatibility
         const accountType = userType ?? "student";
 
         if (!["student", "applicant"].includes(accountType)) {
@@ -40,7 +82,6 @@ async function register(req, res) {
             });
         }
 
-        // 4. Validate optional phone number
         if (
             phone !== undefined &&
             (
@@ -53,7 +94,6 @@ async function register(req, res) {
             });
         }
 
-        // 5. Validate field lengths
         if (
             firstName.trim().length > 50 ||
             lastName.trim().length > 50 ||
@@ -66,7 +106,6 @@ async function register(req, res) {
             });
         }
 
-        // 6. Normalize and validate email
         const normalizedEmail = email.trim().toLowerCase();
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -76,29 +115,17 @@ async function register(req, res) {
             });
         }
 
-        // 7. Check for duplicate accounts
-        const existingUser = users.find(
-            (user) => user.email === normalizedEmail
-        );
-
-        if (existingUser) {
+        // Check SQLite for an existing account.
+        if (findUserByEmail(normalizedEmail)) {
             return res.status(409).json({
                 error: "An account with this email already exists"
             });
         }
 
-        // 8. Hash the password
         const passwordHash = await bcrypt.hash(password, 10);
 
-        if (users.some((user) => user.email === normalizedEmail)) {
-            return res.status(409).json({ error: "An account with this email already exists" });
-        }
-
-        // 9. Create the account
-        let userId = users.reduce((highest, user) => Math.max(highest, user.id), 0) + 1;
-        while (reservedDemoUserIds.has(userId)) userId += 1;
-        const newUser = {
-            id: userId,
+        // Save credentials and profile in SQLite.
+        const newUser = createUser({
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: normalizedEmail,
@@ -106,26 +133,24 @@ async function register(req, res) {
             userType: accountType,
             passwordHash,
             role: "student"
-        };
-
-        // 10. Store the account in memory
-        users.push(newUser);
-
-        // 11. Return account information without the password hash
-        return res.status(201).json({
-            message: "User registered successfully",
-            user: {
-                id: newUser.id,
-                firstName: newUser.firstName,
-                lastName: newUser.lastName,
-                email: newUser.email,
-                phone: newUser.phone,
-                userType: newUser.userType,
-                role: newUser.role
-            }
         });
 
+        // Automatically log in after registration.
+        return startSession(
+            req,
+            newUser,
+            res,
+            201,
+            "User registered successfully"
+        );
+
     } catch (error) {
+        if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+            return res.status(409).json({
+                error: "An account with this email already exists"
+            });
+        }
+
         console.error("Registration error:", error);
 
         return res.status(500).json({
@@ -136,10 +161,8 @@ async function register(req, res) {
 
 async function login(req, res) {
     try {
-        // 1. Extract login credentials
         const { email, password } = req.body ?? {};
 
-        // 2. Validate credentials
         if (
             typeof email !== "string" ||
             typeof password !== "string" ||
@@ -151,12 +174,10 @@ async function login(req, res) {
             });
         }
 
-        // 3. Find the account
         const normalizedEmail = email.trim().toLowerCase();
 
-        const user = users.find(
-            (user) => user.email === normalizedEmail
-        );
+        // Retrieve account from SQLite.
+        const user = findUserByEmail(normalizedEmail);
 
         if (!user) {
             return res.status(401).json({
@@ -164,7 +185,6 @@ async function login(req, res) {
             });
         }
 
-        // 4. Verify the password
         const passwordMatches = await bcrypt.compare(
             password,
             user.passwordHash
@@ -176,43 +196,13 @@ async function login(req, res) {
             });
         }
 
-        // 5. Regenerate the session ID after successful login
-        req.session.regenerate((error) => {
-            if (error) {
-                console.error("Session regeneration error:", error);
-
-                return res.status(500).json({
-                    error: "Unable to create login session"
-                });
-            }
-
-            // 6. Store the authenticated user's identity
-            req.session.userId = user.id;
-
-            // 7. Save the session before responding
-            req.session.save((error) => {
-                if (error) {
-                    console.error("Session save error:", error);
-
-                    return res.status(500).json({
-                        error: "Unable to save login session"
-                    });
-                }
-
-                return res.status(200).json({
-                    message: "Login successful",
-                    user: {
-                        id: user.id,
-                        firstName: user.firstName,
-                        lastName: user.lastName,
-                        email: user.email,
-                        phone: user.phone,
-                        userType: user.userType,
-                        role: user.role
-                    }
-                });
-            });
-        });
+        return startSession(
+            req,
+            user,
+            res,
+            200,
+            "Login successful"
+        );
 
     } catch (error) {
         console.error("Login error:", error);
@@ -223,19 +213,14 @@ async function login(req, res) {
     }
 }
 
-
 function getCurrentUser(req, res) {
-    // Check whether the user has an active session
-    if (!req.session.userId) {
+    if (!req.session?.userId) {
         return res.status(401).json({
             error: "Not authenticated"
         });
     }
 
-    // Find the user associated with the session
-    const user = users.find(
-        (user) => user.id === req.session.userId
-    );
+    const user = findUserById(req.session.userId);
 
     if (!user) {
         return res.status(401).json({
@@ -243,22 +228,12 @@ function getCurrentUser(req, res) {
         });
     }
 
-    // Return user details without exposing the password hash
     return res.status(200).json({
-        user: {
-            id: user.id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            phone: user.phone,
-            userType: user.userType,
-            role: user.role
-        }
+        user: publicUser(user)
     });
 }
 
 function logout(req, res) {
-    // Destroy the session on the server
     req.session.destroy((error) => {
         if (error) {
             console.error("Logout error:", error);
@@ -268,7 +243,6 @@ function logout(req, res) {
             });
         }
 
-        // Clear the session cookie
         res.clearCookie("nebb.sid", {
             path: "/",
             httpOnly: true,

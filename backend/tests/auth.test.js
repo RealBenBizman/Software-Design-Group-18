@@ -1,14 +1,20 @@
+
 import request from "supertest";
 import express from "express";
 import session from "express-session";
 import bcrypt from "bcryptjs";
 
 import app from "../src/app.js";
-import users from "../src/data/users.js";
+import {
+    findUserByEmail,
+    createUser
+} from "../src/data/userRepository.js";
+
+import db from "../src/data/database.js";
 
 import {
-  requireAuth,
-  requireRole
+    requireAuth,
+    requireRole
 } from "../src/middleware/authMiddleware.js";
 
 // Test user information shared by all tests
@@ -18,11 +24,6 @@ const validUser = {
     email: "john@example.com",
     password: "Example123!"
 };
-
-// Clear registered users before each test
-beforeEach(() => {
-    users.length = 0;
-});
 
 describe("Authentication API", () => {
 
@@ -38,8 +39,14 @@ describe("Authentication API", () => {
         expect(response.body.user.passwordHash).toBeUndefined();
 
         // Verify that the password is hashed
-        expect(users[0].passwordHash).toBeDefined();
-        expect(users[0].passwordHash).not.toBe(validUser.password);
+        const savedUser = findUserByEmail(validUser.email);
+
+        expect(savedUser).not.toBeNull();
+        expect(savedUser.passwordHash).toBeDefined();
+        expect(savedUser.passwordHash).not.toBe(validUser.password);
+        expect(
+            await bcrypt.compare(validUser.password, savedUser.passwordHash)
+        ).toBe(true);
     });
 
     // TEST 2: Duplicate email registration
@@ -190,7 +197,6 @@ describe("Authentication API", () => {
         expect(response.statusCode).toBe(400);
         expect(response.body.error).toBe("Invalid phone number");
     });
-
 });
 
 describe("Session Authentication", () => {
@@ -263,13 +269,11 @@ describe("Session Authentication", () => {
 
         expect(meResponse.statusCode).toBe(401);
     });
-
 });
 
 describe("Role-Based Authorization", () => {
 
     // Separate Express app used only for testing permissions.
-    // It does not change the real NEBB Queue API.
     const testApp = express();
 
     testApp.use(express.json());
@@ -286,14 +290,11 @@ describe("Role-Based Authorization", () => {
         })
     );
 
-    // Test-only login endpoint.
-    // It authenticates against our existing in-memory users.
+    // Test-only login endpoint using SQLite.
     testApp.post("/test/login", async (req, res) => {
         const { email, password } = req.body;
 
-        const user = users.find(
-            (account) => account.email === email
-        );
+        const user = findUserByEmail(email);
 
         if (!user) {
             return res.status(401).json({
@@ -371,8 +372,7 @@ describe("Role-Based Authorization", () => {
         }
     );
 
-    // Helper: Register a student using the real API,
-    // then log into the test-only app.
+    // Helper: Register a student through the real API.
     async function createStudentAgent() {
         const registration = await request(app)
             .post("/api/auth/register")
@@ -399,14 +399,12 @@ describe("Role-Based Authorization", () => {
         return agent;
     }
 
-    // Helper: Create a staff account directly in memory.
-    // Staff accounts cannot be created through public registration.
+    // Helper: Create a staff account in SQLite.
     async function createStaffAgent(role) {
         const password = "StaffPassword123!";
         const email = `${role}@example.com`;
 
-        users.push({
-            id: users.length + 1,
+        createUser({
             firstName: "Test",
             lastName: role,
             email,
@@ -514,12 +512,13 @@ describe("Role-Based Authorization", () => {
     test("rejects sessions when the user no longer exists", async () => {
         const agent = await createStudentAgent();
 
-        // Simulate a user account being removed.
-        users.length = 0;
+        // Delete the authenticated account from SQLite.
+        const savedUser = findUserByEmail("student-role@example.com");
+
+        db.prepare("DELETE FROM Users WHERE id = ?").run(savedUser.id);
 
         const response = await agent.get("/test/student");
 
         expect(response.statusCode).toBe(401);
     });
-
 });
