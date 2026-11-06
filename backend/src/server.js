@@ -2,11 +2,14 @@
 import "dotenv/config";
 import app from "./app.js";
 import seedStaff from "./data/seedStaff.js";
+import ( initializeDatabase } from "./db.js";
 
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
+    const db= await initializeDatabase();
+    app.locals.db=db;
     // Create development staff accounts before accepting requests
     await seedStaff();
 
