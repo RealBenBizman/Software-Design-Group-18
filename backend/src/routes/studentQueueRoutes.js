@@ -1,193 +1,260 @@
+
 import express from "express";
+import { store } from "../data/store.js";
+import { insertByPriority } from "../utils/queueOrder.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
-import{ getDb } from "../db.js";
+import {
+    recordQueueJoined,
+    recordQueueFinished
+} from "../services/queueActivity.js";
 
 const router = express.Router();
+
 router.use(requireAuth, requireRole("student"));
 
-router.get("/services", async (req,res) =>
-{ const db=await getDb();
-  try{
-    const services=await db.all(`SELECT * FROM Service`);
-    const serviceAndCounts=await Promise.all(
-      services.map(async(service) =>
-      {
-        const countResult =await db.get(
-          `SELECT COUNT(*) as count FROM QueueEntry WHERE serviceID = ? AND status = 'waiting'`,
-          [service.serviceID]
-        );
-        const count=countResult ? countResult.count:0;
-        const estWait=count * (service.expectedDuration || 5);
+// Validate service ID.
+function isValidServiceID(serviceID) {
+    return Number.isSafeInteger(serviceID) && serviceID > 0;
+}
 
-        return{
-          ...service,
-          id: service.serviceID,
-          people: count,
-          waitMinutes:estWait
-        };
-      })
+// Find a service.
+function getService(serviceID) {
+    return store.services.find(
+        (service) => service.id === serviceID
     );
-    return res.json({
-      success:true,
-      services: serviceAndCounts
-    });
-  } catch (error){
-    console.error("Error getting services:",error);
+}
 
-    return res.status(500).json({ success: false,message: "Database error getting services"});
-  }
+// Find a student's active queue entry.
+function findActiveEntry(userID) {
+    for (const [serviceID, queue] of Object.entries(store.queues)) {
+        const entry = queue.find(
+            (item) => item.userId === userID
+        );
+
+        if (entry) {
+            return {
+                serviceID: Number(serviceID),
+                entry,
+                queue
+            };
+        }
+    }
+
+    return null;
+}
+
+// GET /api/queue/services
+// Retrieve services and estimated wait times.
+router.get("/services", (req, res) => {
+    const services = store.services.map((service) => {
+        const queue = store.queues[service.id] || [];
+
+        return {
+            ...service,
+            people: queue.length,
+            waitMinutes: queue.length * service.expectedDuration
+        };
+    });
+
+    return res.json({
+        success: true,
+        services
+    });
 });
 
-router.post("/join", async(req,res)=>
-{
-  const{serviceID,priority}=req.body;
-  const userID=req.user.userID;
+// POST /api/queue/join
+// Join a service queue.
+router.post("/join", (req, res) => {
+    const { serviceID, priority } = req.body;
+    const userID = req.user.id;
 
-  if(!serviceID)
-  {
-    return res.status(400).json({ success:false,message:"serviceID is required."});
-  }
-
-  try{ const db=await getDb();
-    const service=await db.get(`SELECT * FROM Service WHERE serviceID=?`,[serviceID]);
-    if(!service)
-    {
-      return res.status(404).json({success:false, message:"Could not find service."});
+    if (!isValidServiceID(serviceID)) {
+        return res.status(400).json({
+            success: false,
+            message: "A valid serviceID is required."
+        });
     }
-    const existingEntry=await db.get(
-      `SELECT * FROM QueueEntry WHERE userID=? AND status='waiting'`,
-      [userID]
-    );
 
-    if (existingEntry)
-    {
-      return res.status(409).json({success:false, message:"You already have an active queue entry."});
+    const service = getService(serviceID);
+
+    if (!service) {
+        return res.status(404).json({
+            success: false,
+            message: "Could not find service."
+        });
     }
-    const joinTime=new Date().toISOString();
-    const queueID=`q-${serviceID}`;
 
-    await db.run(
-      `INSERT OR IGNORE INTO Queue (queueID,serviceID,status,createdAt) VALUES (?,?,?,?)`,
-      [queueID,serviceID,'open',joinTime]
-    );
-    const result=await db.run(
-      `INSERT INTO QueueEntry (queueID, userID,serviceID,priority,joinTime,status) VALUES(?,?,?,?,?,?)`,
-      [queueID,userID,serviceID,priority||'Standard',joinTime,'waiting']
-    );
-    const positionResult=await db.get(
-      `SELECT COUNT(*) as count FROM QueueEntry WHERE serviceID=? AND status='waiting' AND entryID <= ?`,
-      [serviceID, result.lastID]
-    );
+    if (!service.open) {
+        return res.status(409).json({
+            success: false,
+            message: "This service is currently closed."
+        });
+    }
 
-    const position=positionResult.count;
-    const estWaitMinutes=position*(service.expectedDuration ||5);
+    // Students cannot assign themselves elevated priority.
+    if (
+        priority !== undefined &&
+        priority !== "Standard" &&
+        priority !== "normal"
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Students cannot assign elevated priority."
+        });
+    }
+
+    // Prevent joining multiple queues simultaneously.
+    if (findActiveEntry(userID)) {
+        return res.status(409).json({
+            success: false,
+            message: "You already have an active queue entry."
+        });
+    }
+
+    const joinTime = new Date().toISOString();
+
+    const entry = {
+        id: store.nextQueueEntryId++,
+        userId: userID,
+        name: `${req.user.firstName} ${req.user.lastName}`.trim(),
+        joined: new Date().toLocaleTimeString(),
+        joinedAt: joinTime,
+        status: "waiting",
+        priority: "normal"
+    };
+
+    // Create the queue if it does not exist.
+    if (!store.queues[serviceID]) {
+        store.queues[serviceID] = [];
+    }
+
+    const queue = store.queues[serviceID];
+
+    // Insert student in the correct queue position.
+    insertByPriority(queue, entry);
+
+    // Record queue history and send notifications.
+    recordQueueJoined(serviceID, entry);
+
+    const position = queue.findIndex(
+        (item) => item.id === entry.id
+    ) + 1;
+
+    const aheadPeople = position - 1;
+    const estWaitMinutes = aheadPeople * service.expectedDuration;
 
     return res.status(201).json({
-      success:true,
-      message:"Successfully joined queue!",
-      queueData:{
-        entryID: result.lastID,
-        userID,
-        serviceID,
-        serviceName:service.serviceName,
-        priority:priority||'Standard',
-        joinedAt: joinTime,
-        position,
-        estWaitMinutes,
-        queueStatus:'waiting'
-      }
+        success: true,
+        message: "Successfully joined queue!",
+        queueData: {
+            queueID: entry.id,
+            entryID: entry.id,
+            userID,
+            userName: entry.name,
+            serviceID,
+            serviceName: service.name,
+            priority: "Standard",
+            joinedAt: joinTime,
+            position,
+            aheadPeople,
+            estWaitMinutes,
+            queueStatus: "waiting"
+        }
     });
-  } catch (error) {
-    console.error("Error joining queue:",error);
-    return res.status(500).json({success:false, message: "error with Database joining queue."});
-  }
 });
 
-router.post("/leave", async(req,res)=>{
- 
-  const userID=req.user.userID;
+// POST /api/queue/leave
+// Leave an active service queue.
+router.post("/leave", (req, res) => {
+    const { serviceID } = req.body;
+    const userID = req.user.id;
 
-  try{ const db= await getDb();
-    const activeEntry=await db.get(
-      `SELECT * FROM QueueEntry WHERE userId=? AND status = 'waiting'`,
-      [userID]
-    );
-
-    if(!activeEntry)
-    {
-      return res.status(404).json({ success:false, message: "Could not find active queue entry."});
+    if (!isValidServiceID(serviceID)) {
+        return res.status(400).json({
+            success: false,
+            message: "A valid serviceID is required."
+        });
     }
-    await db.run(
-      `UPDATE QueueEntry SET status='canceled' WHERE entryID=?`,
-      [activeEntry.entryID]
+
+    const active = findActiveEntry(userID);
+
+    if (!active || active.serviceID !== serviceID) {
+        return res.status(404).json({
+            success: false,
+            message: "Could not find active queue entry."
+        });
+    }
+
+    const index = active.queue.findIndex(
+        (item) => item.id === active.entry.id
     );
 
+    const [removed] = active.queue.splice(index, 1);
+
+    // Update the existing history record.
+    recordQueueFinished(serviceID, removed, "left");
+
     return res.json({
-      success:true,
-      message: "You have left the queue.",
-      removed: activeEntry
+        success: true,
+        message: "You have left the queue.",
+        removed
     });
-  } catch (error){
-    console.error("Error leaving the queue:",error);
-    return res.status(500).json({success:false, message: "Database error leaving the queue."});
-  }
 });
 
-router.get("/status/:userID",async(req,res)=>{
-  
-  const targetUserID=req.params.userID;
+// GET /api/queue/status/:userID
+// Retrieve the authenticated student's queue status.
+router.get("/status/:userID", (req, res) => {
+    const targetUserID = req.params.userID;
+    const userID = req.user.id;
 
-  if (targetUserID !== "me" && targetUserID !== String(req.user.userID))
-  {return res.status(403).json({success: false, message:"You are not authorized to view this status."});
-}
-const userID=req.user.userID;
-try{ const db=await getDb();
-  const activeEntry=await db.get(
-    `SELECT qe.*, s.serviceName, s.expectedDuration
-    FROM QueueEntry qe
-    JOIN Service s ON qe.serviceID=s.serviceID
-    WHERE qe.userID= ? AND qe.status ='waiting'`,
-    [userID]
-  );
+    // Students can only view their own queue status.
+    if (
+        targetUserID !== "me" &&
+        targetUserID !== String(userID)
+    ) {
+        return res.status(403).json({
+            success: false,
+            message: "You are not authorized to view this status."
+        });
+    }
 
-  if(!activeEntry)
-  {
+    const active = findActiveEntry(userID);
+
+    if (!active) {
+        return res.json({
+            success: true,
+            inQueue: false,
+            message: "You are not in a queue."
+        });
+    }
+
+    const service = getService(active.serviceID);
+
+    const position = active.queue.findIndex(
+        (item) => item.id === active.entry.id
+    ) + 1;
+
+    const aheadPeople = position - 1;
+    const estWaitMinutes = aheadPeople * service.expectedDuration;
+
     return res.json({
-      success: true,
-      inQueue: false,
-      message: "You are not in a queue."
+        success: true,
+        inQueue: true,
+        status: {
+            queueID: active.entry.id,
+            entryID: active.entry.id,
+            userID,
+            userName: active.entry.name,
+            serviceID: active.serviceID,
+            serviceName: service.name,
+            priority: "Standard",
+            joinedAt: active.entry.joinedAt,
+            position,
+            aheadPeople,
+            estWaitMinutes,
+            queueStatus: active.entry.status
+        }
     });
-  }
-const aheadResult = await db.get(
-  `SELECT COUNT(*) as count FROM QueueEntry
-  WHERE serviceID =? AND status='waiting' AND entryID <?`,
-  [activeEntry.serviceID, activeEntry.entryID]
-);
-
-const aheadPeople= aheadResult.count;
-const position=aheadPeople +1;
-const estWaitMinutes=position*(activeEntry.expectedDuration ||5);
-
-return res.json({
-  success: true,
-  inQueue:true,
-  status:{
-    entryID: activeEntry.entryID,
-    userID: activeEntry.userID,
-    serviceID: activeEntry.serviceID,
-    serviceName:activeEntry.serviceName,
-    priority:activeEntry.priority,
-    joinedsAt:activeEntry.joinTime,
-    position,
-    aheadPeople,
-    estWaitMinutes,
-    queueStatus:activeEntry.status
-  }
-});
-} catch (error){
-  console.error("Error retrieving queue status:",error);
-  return res.sendStatus(500).json({success:false,message:"Database error checking status."});
-}
 });
 
 export default router;
