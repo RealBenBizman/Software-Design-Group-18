@@ -1,115 +1,260 @@
+
 import express from "express";
 import { store } from "../data/store.js";
-import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 import { insertByPriority } from "../utils/queueOrder.js";
-import { estimateWait } from "../utils/waitTime.js";
-import { recordQueueJoined, recordQueueFinished } from "../services/queueActivity.js";
+import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
+import {
+    recordQueueJoined,
+    recordQueueFinished
+} from "../services/queueActivity.js";
 
 const router = express.Router();
+
 router.use(requireAuth, requireRole("student"));
 
-function activeQueue(userId) {
-  for (const service of store.services) {
-    const queue = store.queues[service.id] || [];
-    const index = queue.findIndex((entry) => entry.userId === userId);
-    if (index !== -1) return { service, queue, entry: queue[index], index };
-  }
-  return null;
+// Validate service ID.
+function isValidServiceID(serviceID) {
+    return Number.isSafeInteger(serviceID) && serviceID > 0;
 }
 
-function queueDetails({ service, entry, index }) {
-  return {
-    queueID: `q-${entry.id}`,
-    userID: entry.userId,
-    userName: entry.name,
-    serviceID: service.id,
-    serviceName: service.name,
-    priority: entry.priority === "high" ? "High" : "Standard",
-    joinedAt: entry.joinedAt || null,
-    position: index + 1,
-    aheadPeople: index,
-    estWaitMinutes: estimateWait(index + 1, service.expectedDuration),
-    queueStatus: entry.status
-  };
+// Find a service.
+function getService(serviceID) {
+    return store.services.find(
+        (service) => service.id === serviceID
+    );
 }
 
-function selectedService(req, res) {
-  const serviceID = req.body?.serviceID;
-  if (!Number.isSafeInteger(serviceID) || serviceID < 1) {
-    res.status(400).json({ success: false, message: "serviceID must be a positive integer." });
+// Find a student's active queue entry.
+function findActiveEntry(userID) {
+    for (const [serviceID, queue] of Object.entries(store.queues)) {
+        const entry = queue.find(
+            (item) => item.userId === userID
+        );
+
+        if (entry) {
+            return {
+                serviceID: Number(serviceID),
+                entry,
+                queue
+            };
+        }
+    }
+
     return null;
-  }
-  const service = store.services.find((item) => item.id === serviceID);
-  if (!service) res.status(404).json({ success: false, message: "Service not found." });
-  return service;
 }
 
+// GET /api/queue/services
+// Retrieve services and estimated wait times.
 router.get("/services", (req, res) => {
-  res.json({
-    success: true,
-    services: store.services.map((service) => {
-      const count = (store.queues[service.id] || []).length;
-      return { ...service, people: count, waitMinutes: estimateWait(count + 1, service.expectedDuration) };
-    })
-  });
+    const services = store.services.map((service) => {
+        const queue = store.queues[service.id] || [];
+
+        return {
+            ...service,
+            people: queue.length,
+            waitMinutes: queue.length * service.expectedDuration
+        };
+    });
+
+    return res.json({
+        success: true,
+        services
+    });
 });
 
+// POST /api/queue/join
+// Join a service queue.
 router.post("/join", (req, res) => {
-  const service = selectedService(req, res);
-  if (!service) return;
-  if (!service.open) {
-    return res.status(409).json({ success: false, message: "This queue is closed." });
-  }
-  if (activeQueue(req.user.id)) {
-    return res.status(409).json({ success: false, message: "You already have an active queue visit. Leave it before joining another." });
-  }
-  if (req.body.priority !== undefined && !["Standard", "normal"].includes(req.body.priority)) {
-    return res.status(400).json({ success: false, message: "Student joins use Standard priority." });
-  }
+    const { serviceID, priority } = req.body;
+    const userID = req.user.id;
 
-  const entry = {
-    id: store.nextQueueEntryId++,
-    userId: req.user.id,
-    name: `${req.user.firstName} ${req.user.lastName}`,
-    priority: "normal",
-    status: "waiting",
-    joinedAt: new Date().toISOString(),
-    joined: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-  };
-  const queue = store.queues[service.id] || (store.queues[service.id] = []);
-  insertByPriority(queue, entry);
-  recordQueueJoined(service.id, entry);
+    if (!isValidServiceID(serviceID)) {
+        return res.status(400).json({
+            success: false,
+            message: "A valid serviceID is required."
+        });
+    }
 
-  res.status(201).json({
-    success: true,
-    message: "Successfully joined queue.",
-    queueData: queueDetails({ service, entry, index: queue.indexOf(entry) })
-  });
+    const service = getService(serviceID);
+
+    if (!service) {
+        return res.status(404).json({
+            success: false,
+            message: "Could not find service."
+        });
+    }
+
+    if (!service.open) {
+        return res.status(409).json({
+            success: false,
+            message: "This service is currently closed."
+        });
+    }
+
+    // Students cannot assign themselves elevated priority.
+    if (
+        priority !== undefined &&
+        priority !== "Standard" &&
+        priority !== "normal"
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Students cannot assign elevated priority."
+        });
+    }
+
+    // Prevent joining multiple queues simultaneously.
+    if (findActiveEntry(userID)) {
+        return res.status(409).json({
+            success: false,
+            message: "You already have an active queue entry."
+        });
+    }
+
+    const joinTime = new Date().toISOString();
+
+    const entry = {
+        id: store.nextQueueEntryId++,
+        userId: userID,
+        name: `${req.user.firstName} ${req.user.lastName}`.trim(),
+        joined: new Date().toLocaleTimeString(),
+        joinedAt: joinTime,
+        status: "waiting",
+        priority: "normal"
+    };
+
+    // Create the queue if it does not exist.
+    if (!store.queues[serviceID]) {
+        store.queues[serviceID] = [];
+    }
+
+    const queue = store.queues[serviceID];
+
+    // Insert student in the correct queue position.
+    insertByPriority(queue, entry);
+
+    // Record queue history and send notifications.
+    recordQueueJoined(serviceID, entry);
+
+    const position = queue.findIndex(
+        (item) => item.id === entry.id
+    ) + 1;
+
+    const aheadPeople = position - 1;
+    const estWaitMinutes = aheadPeople * service.expectedDuration;
+
+    return res.status(201).json({
+        success: true,
+        message: "Successfully joined queue!",
+        queueData: {
+            queueID: entry.id,
+            entryID: entry.id,
+            userID,
+            userName: entry.name,
+            serviceID,
+            serviceName: service.name,
+            priority: "Standard",
+            joinedAt: joinTime,
+            position,
+            aheadPeople,
+            estWaitMinutes,
+            queueStatus: "waiting"
+        }
+    });
 });
 
+// POST /api/queue/leave
+// Leave an active service queue.
 router.post("/leave", (req, res) => {
-  const service = selectedService(req, res);
-  if (!service) return;
-  const queue = store.queues[service.id] || [];
-  const index = queue.findIndex((entry) => entry.userId === req.user.id);
-  if (index === -1) {
-    return res.status(404).json({ success: false, message: "Cannot find an active queue visit for this service." });
-  }
+    const { serviceID } = req.body;
+    const userID = req.user.id;
 
-  const removed = queue.splice(index, 1)[0];
-  recordQueueFinished(service.id, removed, "left");
-  res.json({ success: true, message: "You have left the queue.", removed: { queueID: `q-${removed.id}`, serviceID: service.id } });
+    if (!isValidServiceID(serviceID)) {
+        return res.status(400).json({
+            success: false,
+            message: "A valid serviceID is required."
+        });
+    }
+
+    const active = findActiveEntry(userID);
+
+    if (!active || active.serviceID !== serviceID) {
+        return res.status(404).json({
+            success: false,
+            message: "Could not find active queue entry."
+        });
+    }
+
+    const index = active.queue.findIndex(
+        (item) => item.id === active.entry.id
+    );
+
+    const [removed] = active.queue.splice(index, 1);
+
+    // Update the existing history record.
+    recordQueueFinished(serviceID, removed, "left");
+
+    return res.json({
+        success: true,
+        message: "You have left the queue.",
+        removed
+    });
 });
 
+// GET /api/queue/status/:userID
+// Retrieve the authenticated student's queue status.
 router.get("/status/:userID", (req, res) => {
-  if (req.params.userID !== "me" && req.params.userID !== String(req.user.id)) {
-    return res.status(403).json({ success: false, message: "You can only view your own queue status." });
-  }
-  const active = activeQueue(req.user.id);
-  if (!active) {
-    return res.json({ success: true, inQueue: false, message: "You are not in a queue." });
-  }
-  res.json({ success: true, inQueue: true, status: queueDetails(active) });
+    const targetUserID = req.params.userID;
+    const userID = req.user.id;
+
+    // Students can only view their own queue status.
+    if (
+        targetUserID !== "me" &&
+        targetUserID !== String(userID)
+    ) {
+        return res.status(403).json({
+            success: false,
+            message: "You are not authorized to view this status."
+        });
+    }
+
+    const active = findActiveEntry(userID);
+
+    if (!active) {
+        return res.json({
+            success: true,
+            inQueue: false,
+            message: "You are not in a queue."
+        });
+    }
+
+    const service = getService(active.serviceID);
+
+    const position = active.queue.findIndex(
+        (item) => item.id === active.entry.id
+    ) + 1;
+
+    const aheadPeople = position - 1;
+    const estWaitMinutes = aheadPeople * service.expectedDuration;
+
+    return res.json({
+        success: true,
+        inQueue: true,
+        status: {
+            queueID: active.entry.id,
+            entryID: active.entry.id,
+            userID,
+            userName: active.entry.name,
+            serviceID: active.serviceID,
+            serviceName: service.name,
+            priority: "Standard",
+            joinedAt: active.entry.joinedAt,
+            position,
+            aheadPeople,
+            estWaitMinutes,
+            queueStatus: active.entry.status
+        }
+    });
 });
 
 export default router;

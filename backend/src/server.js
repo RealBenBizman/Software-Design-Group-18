@@ -1,13 +1,17 @@
 
 import "dotenv/config";
 import app from "./app.js";
+import db from "./data/database.js";
 import seedStaff from "./data/seedStaff.js";
 
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
-    // Create development staff accounts before accepting requests
+    // The shared SQLite database initializes when imported.
+    app.locals.db = db;
+
+    // Create development staff accounts before accepting requests.
     await seedStaff();
 
     app.listen(PORT, (error) => {
