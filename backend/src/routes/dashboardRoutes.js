@@ -1,5 +1,16 @@
 import express from "express";
 import { store } from "../data/store.js";
+import {
+  listServices,
+  findServiceById,
+  countServices,
+  countOpenQueues
+} from "../data/serviceRepository.js";
+import {
+  findEmployeeById,
+  getAssignment,
+  countWorkingEmployees
+} from "../data/employeeRepository.js";
 import { estimateWait } from "../utils/waitTime.js";
 
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
@@ -8,38 +19,44 @@ import { requireEmployeeAccess } from "../middleware/staffAccess.js";
 const router = express.Router();
 router.use(requireAuth, requireRole("admin", "employee"));
 
+// Queue entries are still kept in store.queues by the student queue routes.
+const queueFor = (serviceId) => store.queues[serviceId] || [];
+
 router.get("/admin", requireRole("admin"), (req, res) => {
-  const studentsWaiting = Object.values(store.queues).reduce(
-    (total, queue) => total + queue.length,
+  const services = listServices();
+
+  const studentsWaiting = services.reduce(
+    (total, service) => total + queueFor(service.id).length,
     0
   );
 
-  const openQueues = store.services.filter(
-    (service) => service.open
-  ).length;
-
-  const employeesWorking = store.employees.filter(
-    (employee) => employee.status === "working"
-  ).length;
+  const totalWait = services.reduce((total, service) =>
+    total + queueFor(service.id).reduce((sum, entry, index) =>
+      sum + estimateWait(index + 1, service.expectedDuration), 0), 0);
 
   res.json({
-    activeServices: store.services.length,
-    openQueues,
+    activeServices: countServices(),
+    openQueues: countOpenQueues(),
     studentsWaiting,
-    employeesWorking,
+    employeesWorking: countWorkingEmployees(),
     activity: {
       ...store.activity,
-      averageWait: studentsWaiting ? Math.round(store.services.reduce((total, service) =>
-        total + (store.queues[service.id] || []).reduce((sum, entry, index) =>
-          sum + estimateWait(index + 1, service.expectedDuration), 0), 0) / studentsWaiting) : 0
+      averageWait: studentsWaiting ? Math.round(totalWait / studentsWaiting) : 0
     }
   });
 });
 
 router.get("/employee/:employeeId", requireEmployeeAccess, (req, res) => {
-  const employee = req.employee;
+  const employeeId = req.employee.id;
+  const employee = {
+    ...req.employee,
+    ...findEmployeeById(employeeId),
+    ...getAssignment(employeeId)
+  };
 
-  if (!employee.serviceId) {
+  const service = employee.serviceId ? findServiceById(employee.serviceId) : null;
+
+  if (!service) {
     return res.json({
       employee,
       service: null,
@@ -49,14 +66,10 @@ router.get("/employee/:employeeId", requireEmployeeAccess, (req, res) => {
     });
   }
 
-  const service = store.services.find(
-    (item) => item.id === employee.serviceId
-  );
-
-  const queue = store.queues[employee.serviceId] || [];
+  const queue = queueFor(service.id);
 
   const appointments = store.appointments.filter(
-    (appointment) => appointment.serviceId === employee.serviceId
+    (appointment) => appointment.serviceId === service.id
   );
 
   res.json({

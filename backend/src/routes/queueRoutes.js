@@ -1,5 +1,6 @@
 import express from "express";
 import { store } from "../data/store.js";
+import { findServiceById } from "../data/serviceRepository.js";
 import { estimateWait } from "../utils/waitTime.js";
 import { recordQueueFinished } from "../services/queueActivity.js";
 import { createQueueNotification, notifyAlmostReady } from "../services/notificationService.js";
@@ -10,8 +11,10 @@ import { canManageService } from "../middleware/staffAccess.js";
 const router = express.Router();
 router.use(requireAuth, requireRole("admin", "employee"));
 
+// Services come from SQLite. Queue entries stay in store.queues until the
+// student join route saves them to QueueEntry.
 function getService(serviceId) {
-  return store.services.find((service) => service.id === serviceId);
+  return Number.isSafeInteger(serviceId) ? findServiceById(serviceId) : null;
 }
 
 router.get("/:serviceId", (req, res) => {

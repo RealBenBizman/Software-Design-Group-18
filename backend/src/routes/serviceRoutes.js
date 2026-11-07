@@ -1,6 +1,12 @@
 import express from "express";
-import { store } from "../data/store.js";
-import { validateService } from "../utils/validation.js";
+import {
+  listServices,
+  findServiceById,
+  createService,
+  updateService,
+  setServiceOpen
+} from "../data/serviceRepository.js";
+import { validateService, isValidId } from "../utils/validation.js";
 
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 import { canManageService } from "../middleware/staffAccess.js";
@@ -9,7 +15,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get("/", (req, res) => {
-  res.json(store.services);
+  res.json(listServices());
 });
 
 router.post("/", requireRole("admin"), (req, res) => {
@@ -19,31 +25,17 @@ router.post("/", requireRole("admin"), (req, res) => {
     return res.status(400).json({ errors });
   }
 
-  const nextId =
-    store.services.length > 0
-      ? Math.max(...store.services.map((service) => service.id)) + 1
-      : 1;
-
-  const service = {
-    id: nextId,
-    name: req.body.name.trim(),
-    description: req.body.description.trim(),
-    expectedDuration: req.body.expectedDuration,
-    priority: req.body.priority,
-    open: false
-  };
-
-  store.services.push(service);
-  store.queues[service.id] = [];
-
-  res.status(201).json(service);
+  res.status(201).json(createService(req.body));
 });
 
 router.put("/:id", requireRole("admin"), (req, res) => {
   const serviceId = Number(req.params.id);
-  const service = store.services.find((item) => item.id === serviceId);
 
-  if (!service) {
+  if (!isValidId(serviceId)) {
+    return res.status(400).json({ error: "service id must be a positive integer" });
+  }
+
+  if (!findServiceById(serviceId)) {
     return res.status(404).json({ error: "service not found" });
   }
 
@@ -53,19 +45,17 @@ router.put("/:id", requireRole("admin"), (req, res) => {
     return res.status(400).json({ errors });
   }
 
-  service.name = req.body.name.trim();
-  service.description = req.body.description.trim();
-  service.expectedDuration = req.body.expectedDuration;
-  service.priority = req.body.priority;
-
-  res.json(service);
+  res.json(updateService(serviceId, req.body));
 });
 
 router.patch("/:id/status", requireRole("admin", "employee"), (req, res) => {
   const serviceId = Number(req.params.id);
-  const service = store.services.find((item) => item.id === serviceId);
 
-  if (!service) {
+  if (!isValidId(serviceId)) {
+    return res.status(400).json({ error: "service id must be a positive integer" });
+  }
+
+  if (!findServiceById(serviceId)) {
     return res.status(404).json({ error: "service not found" });
   }
 
@@ -77,8 +67,7 @@ router.patch("/:id/status", requireRole("admin", "employee"), (req, res) => {
     return res.status(400).json({ error: "open must be true or false" });
   }
 
-  service.open = req.body.open;
-  res.json(service);
+  res.json(setServiceOpen(serviceId, req.body.open));
 });
 
 export default router;

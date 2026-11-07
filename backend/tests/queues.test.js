@@ -1,11 +1,15 @@
 import { staffSession } from "./helpers/staffSession.js";
 import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
+import { resetServices, updateService } from "../src/data/serviceRepository.js";
+import { resetEmployees } from "../src/data/employeeRepository.js";
 
 let admin;
 let employee;
 beforeEach(async () => {
   resetStore();
+  resetServices();
+  resetEmployees();
   users.length = 0;
   admin = await staffSession();
   employee = await staffSession("employee");
@@ -26,6 +30,27 @@ describe("queue management", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.estimatedWait).toBe(40);
+  });
+
+  test("queue uses the service details saved in SQLite", async () => {
+    updateService(1, {
+      name: "FAFSA Help",
+      description: "Updated",
+      expectedDuration: 5,
+      priority: "high"
+    });
+
+    const queue = await admin.get("/api/queues/1").expect(200);
+    const wait = await admin.get("/api/queues/1/wait-time/3").expect(200);
+
+    expect(queue.body.service.name).toBe("FAFSA Help");
+    expect(wait.body.estimatedWait).toBe(10);
+  });
+
+  test("rejects unknown and invalid service ids", async () => {
+    await admin.get("/api/queues/999").expect(404);
+    await admin.get("/api/queues/abc").expect(404);
+    await admin.post("/api/queues/999/serve-next").expect(404);
   });
 
   test("employee serves next user in assigned queue", async () => {
