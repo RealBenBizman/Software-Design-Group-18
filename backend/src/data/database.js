@@ -83,12 +83,35 @@ db.exec(`
             REFERENCES Service(serviceID)
     );
 
+    CREATE TABLE IF NOT EXISTS QueueHistory (
+        historyID INTEGER PRIMARY KEY AUTOINCREMENT,
+        userID INTEGER NOT NULL,
+        queueEntryID INTEGER NOT NULL,
+        serviceID INTEGER NOT NULL,
+        outcome TEXT NOT NULL
+            CHECK (outcome IN ('waiting', 'served', 'left', 'removed')),
+        joinedAt TEXT,
+        endedAt TEXT,
+        updatedAt TEXT NOT NULL,
+        UNIQUE (userID, queueEntryID, serviceID),
+        FOREIGN KEY (userID)
+            REFERENCES Users(id)
+            ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS NotificationHistory (
         notifID INTEGER PRIMARY KEY AUTOINCREMENT,
         userID INTEGER NOT NULL,
-        message TEXT NOT NULL,
+        queueEntryID INTEGER NOT NULL,
+        serviceID INTEGER NOT NULL,
+        type TEXT NOT NULL
+            CHECK (type IN ('joined', 'almost-ready')),
+        message TEXT NOT NULL
+            CHECK (length(message) BETWEEN 1 AND 500),
         timeStamp TEXT NOT NULL,
-        status TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'sent'
+            CHECK (status IN ('sent', 'viewed')),
+        UNIQUE (userID, queueEntryID, serviceID, type),
         FOREIGN KEY (userID)
             REFERENCES Users(id)
             ON DELETE CASCADE
