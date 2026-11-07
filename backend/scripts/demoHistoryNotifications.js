@@ -1,8 +1,8 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import app from "../src/app.js";
-import users from "../src/data/users.js";
 import { store } from "../src/data/store.js";
+import { createUser, findUserByEmail } from "../src/data/userRepository.js";
 import { recordQueueHistory } from "../src/services/historyService.js";
 import { recordQueueJoined } from "../src/services/queueActivity.js";
 
@@ -12,20 +12,20 @@ if (process.env.NODE_ENV === "production" || !password || password.length < 8) {
   process.exit(1);
 }
 
-users.push({
-  id: 1,
+const email = "ben-demo@example.com";
+const user = findUserByEmail(email) || createUser({
   firstName: "Demo",
   lastName: "Student",
-  email: "ben-demo@example.com",
+  email,
   phone: "",
   userType: "student",
   role: "student",
   passwordHash: await bcrypt.hash(password, 10)
 });
 
-recordQueueHistory(1, { id: 8001, userId: 1, joinedAt: "2026-10-20T15:00:00Z" }, "served");
-recordQueueHistory(2, { id: 8002, userId: 1, joinedAt: "2026-10-21T15:00:00Z" }, "left");
-const currentVisit = { id: 8003, userId: 1, name: "Demo Student", priority: "normal", status: "waiting", joinedAt: new Date().toISOString() };
+recordQueueHistory(1, { id: 8001, userId: user.id, joinedAt: "2026-10-20T15:00:00Z" }, "served");
+recordQueueHistory(2, { id: 8002, userId: user.id, joinedAt: "2026-10-21T15:00:00Z" }, "left");
+const currentVisit = { id: 8003, userId: user.id, name: "Demo Student", priority: "normal", status: "waiting", joinedAt: new Date().toISOString() };
 store.queues[1] = [currentVisit];
 store.nextQueueEntryId = 8004;
 recordQueueJoined(1, currentVisit);
@@ -37,5 +37,5 @@ app.listen(port, (error) => {
     process.exit(1);
   }
   console.log(`History/Notifications preview: http://localhost:${port}`);
-  console.log("Log in as ben-demo@example.com with your NEBB_DEMO_PASSWORD.");
+  console.log(`Log in as ${email} with your NEBB_DEMO_PASSWORD.`);
 });

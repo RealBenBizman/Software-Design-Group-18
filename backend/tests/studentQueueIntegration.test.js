@@ -4,6 +4,7 @@ import app from "../src/app.js";
 import db from "../src/data/database.js";
 import { store, resetStore, reservedDemoUserIds } from "../src/data/store.js";
 import { findUserByEmail } from "../src/data/userRepository.js";
+import { getUserHistory } from "../src/services/historyService.js";
 import { staffSession } from "./helpers/staffSession.js";
 
 let admin;
@@ -265,9 +266,7 @@ test(
       .send({ serviceID: 2 })
       .expect(409);
 
-    expect(
-      store.history.filter((item) => item.userId === studentId)
-    ).toHaveLength(1);
+    expect(getUserHistory(studentId)).toHaveLength(1);
   }
 );
 
