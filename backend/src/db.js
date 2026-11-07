@@ -1,5 +1,9 @@
 import sqlite3 from 'sqlite3';
 import {open} from 'sqlite';
+import path from 'path';
+import {fileURLToPath} from 'url';
+const __filename=fileURLToPath(import.meta.url);
+const __dirname= path.dirname(__filename);
 
 let dbInstance=null;
 export async function getDb()
@@ -7,7 +11,7 @@ export async function getDb()
     if (!dbInstance)
     {
         dbInstance=await open ({
-            filename: './database.sqlite',
+            filename:path.join(__dirname,'database.sqlite'),
             driver:sqlite3.Database
         });
         await dbInstance.exec('PRAGMA foreign_keys=ON;');
@@ -18,7 +22,7 @@ export async function getDb()
 export async function initializeDatabase()
 {
     const db=await open ({
-        filename: './database.sqlite',
+        filename:path.join(__dirname,'database.sqlite'),
         driver: sqlite3.Database
     });
 
