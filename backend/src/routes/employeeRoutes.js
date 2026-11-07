@@ -3,12 +3,17 @@ import express from "express";
 import bcrypt from "bcryptjs";
 
 import { store } from "../data/store.js";
+import { findUserByEmail } from "../data/userRepository.js";
+import { findServiceById } from "../data/serviceRepository.js";
 import {
-  createUser,
-  findUserByEmail
-} from "../data/userRepository.js";
+  listEmployees,
+  findEmployeeById,
+  createEmployee,
+  assignService,
+  clockOut
+} from "../data/employeeRepository.js";
 
-import { validateEmployee } from "../utils/validation.js";
+import { validateEmployee, isValidId } from "../utils/validation.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 import { requireEmployeeAccess } from "../middleware/staffAccess.js";
 
@@ -18,7 +23,7 @@ router.use(requireAuth, requireRole("admin", "employee"));
 
 // Get all employees (admin only)
 router.get("/", requireRole("admin"), (req, res) => {
-  res.json(store.employees);
+  res.json(listEmployees());
 });
 
 // Create a new employee (admin only)
@@ -39,7 +44,7 @@ router.post("/", requireRole("admin"), async (req, res) => {
 
   const email = req.body.email.trim().toLowerCase();
 
-  // Check both existing employee records and SQLite accounts.
+  // The A3 demo employees only exist in the store, so check both.
   const duplicateEmail = () =>
     store.employees.some(
       (employee) => employee.email.toLowerCase() === email
@@ -60,36 +65,9 @@ router.post("/", requireRole("admin"), async (req, res) => {
     });
   }
 
-  const nextId =
-    store.employees.length > 0
-      ? Math.max(...store.employees.map((employee) => employee.id)) + 1
-      : 1;
-
-  const employee = {
-    id: nextId,
-    firstName: req.body.firstName.trim(),
-    lastName: req.body.lastName.trim(),
-    email,
-    phone: req.body.phone.trim(),
-    role: "employee",
-    serviceId: null,
-    status: "offline"
-  };
-
   try {
-    // Store employee login credentials and profile in SQLite.
-    createUser({
-      firstName: employee.firstName,
-      lastName: employee.lastName,
-      email: employee.email,
-      phone: employee.phone,
-      passwordHash,
-      userType: "staff",
-      role: "employee",
-      employeeId: employee.id
-    });
+    return res.status(201).json(createEmployee(req.body, passwordHash));
   } catch (error) {
-    // SQLite enforces unique emails and employee associations.
     if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
       return res.status(409).json({
         error: "employee email already exists"
@@ -98,48 +76,39 @@ router.post("/", requireRole("admin"), async (req, res) => {
 
     throw error;
   }
-
-  // Preserve the existing employee management functionality.
-  store.employees.push(employee);
-
-  return res.status(201).json(employee);
 });
 
 // Assign an employee to a service
 router.patch("/:id/service", requireEmployeeAccess, (req, res) => {
-  const employee = req.employee;
   const serviceId = req.body.serviceId;
 
-  if (!Number.isInteger(serviceId) || serviceId < 1) {
+  if (!isValidId(serviceId)) {
     return res.status(400).json({
       error: "serviceId must be a positive integer"
     });
   }
 
-  const service = store.services.find(
-    (item) => item.id === serviceId
-  );
-
-  if (!service) {
+  if (!findServiceById(serviceId)) {
     return res.status(404).json({
       error: "service not found"
     });
   }
 
-  employee.serviceId = serviceId;
-  employee.status = "working";
+  const assignment = assignService(req.employee.id, serviceId);
 
-  res.json(employee);
+  res.json(employeeResponse(req.employee, assignment));
 });
 
 // Clock an employee out
 router.patch("/:id/clock-out", requireEmployeeAccess, (req, res) => {
-  const employee = req.employee;
+  const assignment = clockOut(req.employee.id);
 
-  employee.serviceId = null;
-  employee.status = "offline";
-
-  res.json(employee);
+  res.json(employeeResponse(req.employee, assignment));
 });
+
+// Prefer the saved account profile, and fall back to the A3 demo record.
+function employeeResponse(employee, assignment) {
+  return { ...employee, ...findEmployeeById(employee.id), ...assignment };
+}
 
 export default router;

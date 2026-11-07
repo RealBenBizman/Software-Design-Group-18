@@ -6,6 +6,10 @@ export const LIMITS = {
   phone: 20
 };
 
+export function isValidId(value) {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
 export function validateService(body) {
   const errors = [];
 
@@ -25,12 +29,8 @@ export function validateService(body) {
     );
   }
 
-  if (
-    typeof body.expectedDuration !== "number" ||
-    !Number.isFinite(body.expectedDuration) ||
-    body.expectedDuration < 1
-  ) {
-    errors.push("expected duration must be a number greater than 0");
+  if (!Number.isInteger(body.expectedDuration) || body.expectedDuration < 1) {
+    errors.push("expected duration must be a whole number greater than 0");
   }
 
   if (!["low", "medium", "high"].includes(body.priority)) {

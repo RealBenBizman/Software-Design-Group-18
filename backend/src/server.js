@@ -1,6 +1,7 @@
 
 import "dotenv/config";
 import app from "./app.js";
+import db from "./data/database.js";
 import seedStaff from "./data/seedStaff.js";
 import {initializeDatabase} from './db.js';
 
