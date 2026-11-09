@@ -6,6 +6,18 @@ import {
     findUserByEmail
 } from "./userRepository.js";
 
+// Shared development-only demo logins. Environment variables override them.
+export const DEFAULT_STAFF_LOGINS = {
+    employee: {
+        email: "employee@queuesmart.test",
+        password: "EmployeeTest123!"
+    },
+    admin: {
+        email: "admin@queuesmart.test",
+        password: "AdminTest123!"
+    }
+};
+
 async function seedStaff() {
     // Never create demo staff accounts in production.
     if (process.env.NODE_ENV === "production") {
@@ -16,15 +28,15 @@ async function seedStaff() {
         {
             firstName: "Demo",
             lastName: "Employee",
-            email: process.env.DEV_EMPLOYEE_EMAIL,
-            password: process.env.DEV_EMPLOYEE_PASSWORD,
+            email: process.env.DEV_EMPLOYEE_EMAIL || DEFAULT_STAFF_LOGINS.employee.email,
+            password: process.env.DEV_EMPLOYEE_PASSWORD || DEFAULT_STAFF_LOGINS.employee.password,
             role: "employee"
         },
         {
             firstName: "Demo",
             lastName: "Admin",
-            email: process.env.DEV_ADMIN_EMAIL,
-            password: process.env.DEV_ADMIN_PASSWORD,
+            email: process.env.DEV_ADMIN_EMAIL || DEFAULT_STAFF_LOGINS.admin.email,
+            password: process.env.DEV_ADMIN_PASSWORD || DEFAULT_STAFF_LOGINS.admin.password,
             role: "admin"
         }
     ];
@@ -69,16 +81,28 @@ async function seedStaff() {
         );
 
         // Save staff credentials and profile in SQLite.
-        createUser({
-            firstName: employee?.firstName || account.firstName,
-            lastName: employee?.lastName || account.lastName,
-            email,
-            phone: "",
-            userType: "staff",
-            passwordHash,
-            role: account.role,
-            employeeId: employee?.id ?? null
-        });
+        try {
+            createUser({
+                firstName: employee?.firstName || account.firstName,
+                lastName: employee?.lastName || account.lastName,
+                email,
+                phone: "",
+                userType: "staff",
+                passwordHash,
+                role: account.role,
+                employeeId: employee?.id ?? null
+            });
+        } catch (error) {
+            // Another account is already linked to this employee record.
+            if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+                console.warn(
+                    `Skipped demo ${account.role} login ${email}: employee record is already linked to another account.`
+                );
+                continue;
+            }
+
+            throw error;
+        }
 
         // Keep the demo employee record synchronized.
         if (employee) {

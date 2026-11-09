@@ -1,6 +1,7 @@
 import request from "supertest";
 import app from "../src/app.js";
-import seedStaff from "../src/data/seedStaff.js";
+import seedStaff, { DEFAULT_STAFF_LOGINS } from "../src/data/seedStaff.js";
+import db from "../src/data/database.js";
 import users from "../src/data/users.js";
 import { resetStore } from "../src/data/store.js";
 import { findUserByEmail } from "../src/data/userRepository.js";
@@ -65,4 +66,40 @@ test("invalid configured employee and weak staff password are rejected", async (
   process.env.DEV_EMPLOYEE_ID = "999";
   await expect(seedStaff()).rejects.toThrow("DEV_EMPLOYEE_ID");
   expect(users).toHaveLength(0);
+});
+
+test("default demo logins are created once and authenticate", async () => {
+  await seedStaff();
+  await seedStaff();
+
+  const admin = findUserByEmail(DEFAULT_STAFF_LOGINS.admin.email);
+  const employee = findUserByEmail(DEFAULT_STAFF_LOGINS.employee.email);
+  expect(admin).toMatchObject({ role: "admin", userType: "staff", employeeId: null, firstName: "Demo", lastName: "Admin" });
+  expect(employee).toMatchObject({ role: "employee", userType: "staff", employeeId: 1, firstName: "Jordan" });
+  expect(admin.passwordHash).not.toBe(DEFAULT_STAFF_LOGINS.admin.password);
+
+  const { count } = db.prepare("SELECT COUNT(*) AS count FROM Users WHERE email IN (?, ?)")
+    .get(DEFAULT_STAFF_LOGINS.admin.email, DEFAULT_STAFF_LOGINS.employee.email);
+  expect(count).toBe(2);
+
+  for (const role of ["admin", "employee"]) {
+    const login = await request(app).post("/api/auth/login").send(DEFAULT_STAFF_LOGINS[role]).expect(200);
+    expect(login.body.user.role).toBe(role);
+  }
+});
+
+test("production never creates the default demo logins", async () => {
+  process.env.NODE_ENV = "production";
+  await seedStaff();
+  expect(findUserByEmail(DEFAULT_STAFF_LOGINS.admin.email)).toBeNull();
+  expect(findUserByEmail(DEFAULT_STAFF_LOGINS.employee.email)).toBeNull();
+});
+
+test("default employee is skipped when employee 1 already has another login", async () => {
+  process.env.DEV_EMPLOYEE_EMAIL = "first@example.com";
+  await seedStaff();
+  delete process.env.DEV_EMPLOYEE_EMAIL;
+  await seedStaff();
+  expect(findUserByEmail(DEFAULT_STAFF_LOGINS.employee.email)).toBeNull();
+  expect(findUserByEmail(DEFAULT_STAFF_LOGINS.admin.email)).not.toBeNull();
 });
