@@ -91,62 +91,117 @@ function Register() {
                 <h1>Create Account</h1>
                 <p>Join NEBB Queue and get started</p>
 
-                <form onSubmit={handleSubmit}>
-                    <label>Account Type</label>
+                <form
+                    onSubmit={handleSubmit}
+                    autoComplete="on"
+                >
+                    <label htmlFor="register-user-type">
+                        Account Type
+                    </label>
                     <select
+                        id="register-user-type"
+                        name="userType"
                         value={userType}
-                        onChange={(event) => setUserType(event.target.value)}
+                        onChange={(event) =>
+                            setUserType(event.target.value)
+                        }
                         required
                     >
-                        <option value="">Select account type</option>
-                        <option value="student">Student</option>
-                        <option value="applicant">Applicant</option>
+                        <option value="">
+                            Select account type
+                        </option>
+                        <option value="student">
+                            Student
+                        </option>
+                        <option value="applicant">
+                            Applicant
+                        </option>
                     </select>
 
-                    <label>First Name</label>
+                    <label htmlFor="register-first-name">
+                        First Name
+                    </label>
                     <input
+                        id="register-first-name"
+                        name="given-name"
                         type="text"
+                        autoComplete="given-name"
                         value={firstName}
-                        onChange={(event) => setFirstName(event.target.value)}
+                        onChange={(event) =>
+                            setFirstName(event.target.value)
+                        }
                         required
                     />
 
-                    <label>Last Name</label>
+                    <label htmlFor="register-last-name">
+                        Last Name
+                    </label>
                     <input
+                        id="register-last-name"
+                        name="family-name"
                         type="text"
+                        autoComplete="family-name"
                         value={lastName}
-                        onChange={(event) => setLastName(event.target.value)}
+                        onChange={(event) =>
+                            setLastName(event.target.value)
+                        }
                         required
                     />
 
-                    <label>Email</label>
+                    <label htmlFor="register-email">
+                        Email
+                    </label>
                     <input
+                        id="register-email"
+                        name="email"
                         type="email"
+                        autoComplete="username"
                         value={email}
-                        onChange={(event) => setEmail(event.target.value)}
+                        onChange={(event) =>
+                            setEmail(event.target.value)
+                        }
                         required
                     />
 
-                    <label>Phone Number</label>
+                    <label htmlFor="register-phone">
+                        Phone Number
+                    </label>
                     <input
+                        id="register-phone"
+                        name="phone"
                         type="tel"
+                        autoComplete="tel"
                         value={phone}
-                        onChange={(event) => setPhone(event.target.value)}
+                        onChange={(event) =>
+                            setPhone(event.target.value)
+                        }
                         required
                     />
 
-                    <label>Password</label>
+                    <label htmlFor="register-password">
+                        Password
+                    </label>
                     <input
+                        id="register-password"
+                        name="password"
                         type="password"
+                        autoComplete="new-password"
                         value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        onChange={(event) =>
+                            setPassword(event.target.value)
+                        }
                         minLength={8}
                         required
                     />
 
-                    <label>Confirm Password</label>
+                    <label htmlFor="register-confirm-password">
+                        Confirm Password
+                    </label>
                     <input
+                        id="register-confirm-password"
+                        name="confirmPassword"
                         type="password"
+                        autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(event) =>
                             setConfirmPassword(event.target.value)
@@ -156,17 +211,26 @@ function Register() {
                     />
 
                     {error && (
-                        <p className="auth-error">{error}</p>
+                        <p className="auth-error">
+                            {error}
+                        </p>
                     )}
 
-                    <button type="submit" disabled={loading}>
-                        {loading ? "Creating Account..." : "Create Account"}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                    >
+                        {loading
+                            ? "Creating Account..."
+                            : "Create Account"}
                     </button>
                 </form>
 
                 <p>
                     Already have an account?{" "}
-                    <Link to="/login">Login</Link>
+                    <Link to="/login">
+                        Login
+                    </Link>
                 </p>
             </div>
         </div>
@@ -174,4 +238,3 @@ function Register() {
 }
 
 export default Register;
-

@@ -71,40 +71,66 @@ function Login() {
                 <h1>Welcome Back</h1>
                 <p>Sign in to your account</p>
 
-                <form onSubmit={handleSubmit}>
-                    <label>Email</label>
+                <form
+                    onSubmit={handleSubmit}
+                    autoComplete="on"
+                >
+                    <label htmlFor="login-email">
+                        Email
+                    </label>
                     <input
+                        id="login-email"
+                        name="email"
                         type="email"
+                        autoComplete="username"
                         value={email}
-                        onChange={(event) => setEmail(event.target.value)}
+                        onChange={(event) =>
+                            setEmail(event.target.value)
+                        }
                         required
                     />
 
-                    <label>Password</label>
+                    <label htmlFor="login-password">
+                        Password
+                    </label>
                     <input
+                        id="login-password"
+                        name="password"
                         type="password"
+                        autoComplete="current-password"
                         value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        onChange={(event) =>
+                            setPassword(event.target.value)
+                        }
                         required
                     />
 
                     {error && (
-                        <p className="auth-error">{error}</p>
+                        <p className="auth-error">
+                            {error}
+                        </p>
                     )}
 
-                    <button type="submit" disabled={loading}>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                    >
                         {loading ? "Signing In..." : "Login"}
                     </button>
                 </form>
 
                 <p>
                     Don't have an account?{" "}
-                    <Link to="/register">Register</Link>
+                    <Link to="/register">
+                        Register
+                    </Link>
                 </p>
 
                 <p>
                     Staff member?{" "}
-                    <Link to="/staff-login">Staff Sign In</Link>
+                    <Link to="/staff-login">
+                        Staff Sign In
+                    </Link>
                 </p>
             </div>
         </div>
